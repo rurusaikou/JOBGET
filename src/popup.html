@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>JDGET</title>
+    <link rel="stylesheet" href="./popup.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div>
+          <h1>JDGET</h1>
+          <p id="status">准备提取当前页面</p>
+        </div>
+        <span id="count" class="count">0</span>
+      </header>
+
+      <section class="actions">
+        <button id="extract" class="primary" type="button">提取当前 JD</button>
+        <button id="export" type="button">导出 Excel</button>
+        <button id="inspect" type="button">导出DOM结构</button>
+        <button id="clear" class="ghost" type="button">清空</button>
+      </section>
+
+      <section class="preview" aria-live="polite">
+        <h2>最近一条</h2>
+        <dl id="jobPreview">
+          <div>
+            <dt>职位</dt>
+            <dd id="title">-</dd>
+          </div>
+          <div>
+            <dt>公司</dt>
+            <dd id="company">-</dd>
+          </div>
+          <div>
+            <dt>地点</dt>
+            <dd id="location">-</dd>
+          </div>
+          <div>
+            <dt>薪资</dt>
+            <dd id="salary">-</dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+    <script src="./xlsx.js"></script>
+    <script src="./popup.js"></script>
+  </body>
+</html>
