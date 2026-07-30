@@ -37,6 +37,8 @@ async function getJobs() {
 }
 
 async function setJobs(jobs) {
+  // 覆盖式写入比增量 append 更简单；当前数据量是用户手动采集的 JD 列表，
+  // chrome.storage.local 足够承载，不需要引入 IndexedDB。
   await chromeAsync((done) => chrome.storage.local.set({ [STORAGE_KEY]: jobs }, done));
 }
 
@@ -62,6 +64,8 @@ async function extractFromCurrentTab() {
   const tab = await activeTab();
   if (!tab || !tab.id) throw new Error("没有找到当前标签页");
 
+  // 只把“提取”命令发给 content script；字段解析逻辑都留在页面上下文中完成。
+  // 这样 popup 不需要知道招聘网站 DOM，也不会因为跨上下文访问 DOM 失败。
   const response = await sendMessageWithInjection(tab.id, { type: "JDGET_EXTRACT" });
   if (!response || !response.ok) throw new Error("页面没有返回 JD 信息");
   return response.job;
@@ -71,6 +75,7 @@ async function inspectCurrentTab() {
   const tab = await activeTab();
   if (!tab || !tab.id) throw new Error("没有找到当前标签页");
 
+  // DOM 调试报告会包含完整 HTML，体积可能较大，所以只在用户主动点击时生成。
   const response = await sendMessageWithInjection(tab.id, { type: "JDGET_INSPECT_DOM" });
   if (!response || !response.ok) throw new Error("页面没有返回 DOM 结构");
   return response.report;
@@ -94,6 +99,8 @@ async function sendMessageWithInjection(tabId, message) {
 }
 
 function sendMessage(tabId, message) {
+  // chrome.tabs.sendMessage 会把消息发到指定标签页的 content script。
+  // 如果目标页是 chrome://、扩展页或浏览器禁止注入的页面，调用会失败并进入上层 catch。
   return chromeAsync((done) => {
     chrome.tabs.sendMessage(tabId, message, done);
   });
@@ -102,6 +109,7 @@ function sendMessage(tabId, message) {
 // Excel 的列顺序由这里决定。只保留当前真正需要的字段，
 // content.js 中用于调试或未来扩展的字段不会自动进入表格。
 function jobRows(jobs) {
+  // 对象 key 会成为 xlsx 第一行表头；这里使用中文 key，用户打开 Excel 即可直接阅读。
   return jobs.map((job) => ({
     "岗位名称": job.title || "",
     "公司名称": job.company || "",
@@ -116,6 +124,8 @@ function jobRows(jobs) {
 }
 
 async function downloadWorkbook(jobs) {
+  // xlsx.js 暴露 JDGET_XLSX.createWorkbookBlob，返回标准 Excel MIME Blob。
+  // popup 只负责把业务数据映射成表格行，不处理底层 zip/xml 细节。
   const blob = window.JDGET_XLSX.createWorkbookBlob(jobRows(jobs), "JD信息");
   const date = new Date().toISOString().slice(0, 10);
   await downloadBlob(blob, `JDGET-${date}.xlsx`, true);
@@ -129,6 +139,8 @@ async function downloadJson(data) {
 }
 
 async function downloadBlob(blob, filename, saveAs) {
+  // downloads API 需要可下载 URL。Blob URL 只在当前扩展上下文有效，
+  // 下载任务创建后延迟释放，避免浏览器还没读取完就 revoke。
   const url = URL.createObjectURL(blob);
 
   await chromeAsync((done) => {
