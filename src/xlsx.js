@@ -226,7 +226,7 @@
   }
 
   window.JDGET_XLSX = {
-    // 暴露给 popup.js 使用。content script 不需要加载这个文件。
+    // 暴露给侧边栏面板使用。content script 不需要加载这个文件。
     createWorkbookBlob
   };
 })();

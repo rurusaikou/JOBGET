@@ -10,7 +10,9 @@
 }
 
 body {
-  width: 360px;
+  /* 侧边栏宽度可被浏览器调整，面板需要跟随容器自适应。 */
+  width: 100%;
+  min-width: 320px;
   margin: 0;
   background: #f6f7f9;
 }

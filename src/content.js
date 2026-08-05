@@ -1,6 +1,6 @@
 (function () {
   // content script 运行在招聘网站页面里，负责读取真实 DOM。
-  // popup.js 不直接访问页面 DOM，而是通过 chrome.tabs.sendMessage 调用这里的能力。
+  // 侧边栏面板不直接访问页面 DOM，而是通过 chrome.tabs.sendMessage 调用这里的能力。
 
   // BOSS 直聘会用私有 Unicode 字符渲染薪资数字。
   // 这里把当前已验证的一组字符还原为普通数字，保证 Excel 中能看到真实薪资。
@@ -22,7 +22,7 @@
   const EDUCATION_PATTERN = /(学历不限|中专\/中技|高中|大专|本科|硕士|博士|MBA|EMBA)/i;
 
   // 统一的职位数据结构。
-  // 这样每个提取器都返回同一组字段，popup.js 导出 Excel 时不用关心来源站点。
+  // 这样每个提取器都返回同一组字段，侧边栏面板导出 Excel 时不用关心来源站点。
   // 当前 Excel 只需要这些字段。其他调试信息放在 DOM 报告里，不进入导出数据。
   const EMPTY_JOB = {
     title: "",
@@ -394,12 +394,12 @@
   }
 
   function buildDomOutline(node, depth, state) {
-    // outline 是 fullHtml 的轻量索引。限制节点数和深度，避免列表页/弹窗 DOM 太大。
+    // outline 是 fullHtml 的轻量索引。限制节点数和深度，避免列表页/页面浮层 DOM 太大。
     if (!node || state.count >= state.max || depth > state.maxDepth) return null;
     if (node.nodeType !== Node.ELEMENT_NODE) return null;
 
     const style = window.getComputedStyle(node);
-    // 隐藏弹窗、二维码、上传框等会污染结构报告；outline 里直接跳过不可见节点。
+    // 隐藏浮层、二维码、上传框等会污染结构报告；outline 里直接跳过不可见节点。
     if (style.display === "none" || style.visibility === "hidden") return null;
 
     state.count += 1;
@@ -434,7 +434,7 @@
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    // popup.js 通过消息调用页面提取。这里同步返回即可，因为所有读取都来自当前 DOM。
+    // 侧边栏面板通过消息调用页面提取。这里同步返回即可，因为所有读取都来自当前 DOM。
     if (message && message.type === "JDGET_EXTRACT") {
       sendResponse({ ok: true, job: extractJob() });
     }

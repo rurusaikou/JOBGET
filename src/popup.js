@@ -1,6 +1,6 @@
 const STORAGE_KEY = "jdget.jobs";
 
-// 弹窗页面中会频繁访问这些节点，集中缓存可以避免到处 querySelector。
+// 侧边栏面板中会频繁访问这些节点，集中缓存可以避免到处 querySelector。
 const els = {
   extract: document.querySelector("#extract"),
   export: document.querySelector("#export"),
@@ -42,7 +42,56 @@ async function setJobs(jobs) {
   await chromeAsync((done) => chrome.storage.local.set({ [STORAGE_KEY]: jobs }, done));
 }
 
-// 弹窗只展示最近一次提取的核心字段；完整字段在导出的 Excel 中。
+function normalizeForDedupe(value) {
+  // 去重前先统一空白和大小写，避免同一 JD 因换行/空格差异被当成两条。
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function jobDedupeKey(job) {
+  // 来源链接通常最稳定；同时拼上核心字段，避免列表页同 URL 下切换职位时误判。
+  const sourceUrl = normalizeForDedupe(job.sourceUrl);
+  const identity = [
+    normalizeForDedupe(job.title),
+    normalizeForDedupe(job.company),
+    normalizeForDedupe(job.location),
+    normalizeForDedupe(job.salary)
+  ].filter(Boolean).join("|");
+
+  return sourceUrl ? `${sourceUrl}|${identity}` : identity;
+}
+
+function dedupeJobs(jobs) {
+  // 保留第一次出现的记录，后续重复项丢弃；这样不会改变用户原有收集顺序。
+  const seen = new Set();
+  const unique = [];
+
+  for (const job of jobs) {
+    const key = jobDedupeKey(job);
+    if (!key) {
+      unique.push(job);
+      continue;
+    }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(job);
+  }
+
+  return unique;
+}
+
+function appendUniqueJob(jobs, job) {
+  // 保存时就去重，避免面板计数和最终 Excel 数量不一致。
+  const nextJobs = dedupeJobs([...jobs, job]);
+  return {
+    jobs: nextJobs,
+    added: nextJobs.length > dedupeJobs(jobs).length
+  };
+}
+
+// 面板只展示最近一次提取的核心字段；完整字段在导出的 Excel 中。
 function render(jobs) {
   const latest = jobs[jobs.length - 1] || {};
   els.count.textContent = String(jobs.length);
@@ -65,7 +114,7 @@ async function extractFromCurrentTab() {
   if (!tab || !tab.id) throw new Error("没有找到当前标签页");
 
   // 只把“提取”命令发给 content script；字段解析逻辑都留在页面上下文中完成。
-  // 这样 popup 不需要知道招聘网站 DOM，也不会因为跨上下文访问 DOM 失败。
+  // 这样侧边栏面板不需要知道招聘网站 DOM，也不会因为跨上下文访问 DOM 失败。
   const response = await sendMessageWithInjection(tab.id, { type: "JDGET_EXTRACT" });
   if (!response || !response.ok) throw new Error("页面没有返回 JD 信息");
   return response.job;
@@ -110,7 +159,7 @@ function sendMessage(tabId, message) {
 // content.js 中用于调试或未来扩展的字段不会自动进入表格。
 function jobRows(jobs) {
   // 对象 key 会成为 xlsx 第一行表头；这里使用中文 key，用户打开 Excel 即可直接阅读。
-  return jobs.map((job) => ({
+  return dedupeJobs(jobs).map((job) => ({
     "岗位名称": job.title || "",
     "公司名称": job.company || "",
     "工作地点": job.location || "",
@@ -125,7 +174,7 @@ function jobRows(jobs) {
 
 async function downloadWorkbook(jobs) {
   // xlsx.js 暴露 JDGET_XLSX.createWorkbookBlob，返回标准 Excel MIME Blob。
-  // popup 只负责把业务数据映射成表格行，不处理底层 zip/xml 细节。
+  // 侧边栏面板只负责把业务数据映射成表格行，不处理底层 zip/xml 细节。
   const blob = window.JDGET_XLSX.createWorkbookBlob(jobRows(jobs), "JD信息");
   const date = new Date().toISOString().slice(0, 10);
   await downloadBlob(blob, `JDGET-${date}.xlsx`, true);
@@ -165,10 +214,14 @@ els.extract.addEventListener("click", async () => {
   try {
     const job = await extractFromCurrentTab();
     const jobs = await getJobs();
-    jobs.push(job);
-    await setJobs(jobs);
-    render(jobs);
-    setStatus(job.title ? "已保存到本地列表" : "已保存，但职位名可能需要手动核对");
+    const result = appendUniqueJob(jobs, job);
+    await setJobs(result.jobs);
+    render(result.jobs);
+    if (!result.added) {
+      setStatus("已存在相同 JD，未重复保存");
+    } else {
+      setStatus(job.title ? "已保存到本地列表" : "已保存，但职位名可能需要手动核对");
+    }
   } catch (error) {
     setStatus(error.message || "提取失败");
   } finally {
@@ -182,8 +235,12 @@ els.export.addEventListener("click", async () => {
 
   try {
     const jobs = await getJobs();
-    await downloadWorkbook(jobs);
-    setStatus("Excel 已发送到下载目录");
+    const uniqueJobs = dedupeJobs(jobs);
+    if (uniqueJobs.length !== jobs.length) {
+      await setJobs(uniqueJobs);
+    }
+    await downloadWorkbook(uniqueJobs);
+    setStatus(uniqueJobs.length === jobs.length ? "Excel 已发送到下载目录" : "Excel 已去重并发送到下载目录");
   } catch (error) {
     setStatus(error.message || "导出失败");
   }
@@ -212,10 +269,16 @@ els.clear.addEventListener("click", async () => {
   setStatus("列表已清空");
 });
 
-// 弹窗打开时立即恢复本地记录数量和最近一条预览。
+// 面板打开时立即恢复本地记录数量和最近一条预览。
 getJobs()
   .then((jobs) => {
-    render(jobs);
-    setStatus(jobs.length ? "可以继续提取或导出" : "准备提取当前页面");
+    const uniqueJobs = dedupeJobs(jobs);
+    render(uniqueJobs);
+    if (uniqueJobs.length !== jobs.length) {
+      setJobs(uniqueJobs).catch(() => {});
+      setStatus("已清理本地重复 JD");
+    } else {
+      setStatus(jobs.length ? "可以继续提取或导出" : "准备提取当前页面");
+    }
   })
   .catch((error) => setStatus(error.message || "读取本地数据失败"));
