@@ -4,7 +4,6 @@ const STORAGE_KEY = "jdget.jobs";
 const els = {
   extract: document.querySelector("#extract"),
   export: document.querySelector("#export"),
-  inspect: document.querySelector("#inspect"),
   clear: document.querySelector("#clear"),
   status: document.querySelector("#status"),
   count: document.querySelector("#count"),
@@ -103,7 +102,7 @@ function render(jobs) {
   els.clear.disabled = jobs.length === 0;
 }
 
-// 获取当前激活标签页。所有提取和 DOM 调试都只作用于这个标签页。
+// 获取当前激活标签页。所有提取动作都只作用于这个标签页。
 async function activeTab() {
   const tabs = await chromeAsync((done) => chrome.tabs.query({ active: true, currentWindow: true }, done));
   return tabs[0];
@@ -116,18 +115,8 @@ async function extractFromCurrentTab() {
   // 只把“提取”命令发给 content script；字段解析逻辑都留在页面上下文中完成。
   // 这样侧边栏面板不需要知道招聘网站 DOM，也不会因为跨上下文访问 DOM 失败。
   const response = await sendMessageWithInjection(tab.id, { type: "JDGET_EXTRACT" });
-  if (!response || !response.ok) throw new Error("页面没有返回 JD 信息");
+  if (!response || !response.ok) throw new Error((response && response.message) || "页面没有返回 JD 信息");
   return response.job;
-}
-
-async function inspectCurrentTab() {
-  const tab = await activeTab();
-  if (!tab || !tab.id) throw new Error("没有找到当前标签页");
-
-  // DOM 调试报告会包含完整 HTML，体积可能较大，所以只在用户主动点击时生成。
-  const response = await sendMessageWithInjection(tab.id, { type: "JDGET_INSPECT_DOM" });
-  if (!response || !response.ok) throw new Error("页面没有返回 DOM 结构");
-  return response.report;
 }
 
 // 如果页面是在扩展安装前打开的，content script 可能还没注入。
@@ -160,16 +149,26 @@ function sendMessage(tabId, message) {
 function jobRows(jobs) {
   // 对象 key 会成为 xlsx 第一行表头；这里使用中文 key，用户打开 Excel 即可直接阅读。
   return dedupeJobs(jobs).map((job) => ({
-    "岗位名称": job.title || "",
-    "公司名称": job.company || "",
+    "岗位": job.title || "",
+    "公司": job.company || "",
     "工作地点": job.location || "",
     "工作经验": job.experience || "",
     "学历要求": job.education || "",
     "薪资": job.salary || "",
     "JD原文": job.description || "",
     "发布日期": job.postedDate || "",
+    "来源网站": job.sourceSite || inferSourceSite(job.sourceUrl),
     "来源链接": job.sourceUrl || ""
   }));
+}
+
+function inferSourceSite(sourceUrl) {
+  // 兼容旧缓存：历史记录没有 sourceSite 时，导出前从链接反推来源网站。
+  const url = String(sourceUrl || "");
+  if (/zhipin\.com/i.test(url)) return "boss直聘";
+  if (/zhaopin\.com/i.test(url)) return "智联招聘";
+  if (/liepin\.com/i.test(url)) return "猎聘";
+  return "";
 }
 
 async function downloadWorkbook(jobs) {
@@ -178,13 +177,6 @@ async function downloadWorkbook(jobs) {
   const blob = window.JDGET_XLSX.createWorkbookBlob(jobRows(jobs), "JD信息");
   const date = new Date().toISOString().slice(0, 10);
   await downloadBlob(blob, `JDGET-${date}.xlsx`, true);
-}
-
-// DOM 调试报告可能很大，保存为 JSON 方便直接搜索 HTML 结构。
-async function downloadJson(data) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  await downloadBlob(blob, `JDGET-DOM-${timestamp}.json`, true);
 }
 
 async function downloadBlob(blob, filename, saveAs) {
@@ -243,22 +235,6 @@ els.export.addEventListener("click", async () => {
     setStatus(uniqueJobs.length === jobs.length ? "Excel 已发送到下载目录" : "Excel 已去重并发送到下载目录");
   } catch (error) {
     setStatus(error.message || "导出失败");
-  }
-});
-
-// “导出DOM结构”：用于排查页面结构变化，后续适配新网站也靠它。
-els.inspect.addEventListener("click", async () => {
-  els.inspect.disabled = true;
-  setStatus("正在读取页面 DOM 结构...");
-
-  try {
-    const report = await inspectCurrentTab();
-    await downloadJson(report);
-    setStatus("DOM 结构已导出为 JSON");
-  } catch (error) {
-    setStatus(error.message || "导出 DOM 失败");
-  } finally {
-    els.inspect.disabled = false;
   }
 });
 

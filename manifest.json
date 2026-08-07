@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "JDGET",
   "description": "Extract job description information from recruiting sites and export it to Excel.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minimum_chrome_version": "114",
   "action": {
     "default_title": "JDGET"
