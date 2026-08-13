@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "JDGET",
-  "description": "Extract job description information from recruiting sites and export it to Excel.",
-  "version": "0.3.0",
+  "name": "JOBGET",
+  "description": "Extract job descriptions, collect favorites, and export recruiting intelligence to Excel.",
+  "version": "0.4.0",
   "minimum_chrome_version": "114",
   "action": {
-    "default_title": "JDGET"
+    "default_title": "JOBGET"
   },
   "background": {
     "service_worker": "src/background.js"

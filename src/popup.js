@@ -1,260 +1,412 @@
-const STORAGE_KEY = "jdget.jobs";
+import { baseSuggestions, matches } from "./popup/data/match-data.js";
+import { copyText, escapeHtml, flashButton, qs, qsa, setStatus } from "./popup/dom.js";
+import { exportJobs } from "./popup/export.js";
+import { extractFromCurrentTab } from "./popup/extract.js";
+import { appendUniqueJob, getJobs, normalizeJobForUi, setJobs } from "./popup/jobs.js";
+import { greetingFor, intelligenceFor, keywordsFor, suggestionsFor } from "./popup/intelligence.js";
+import { applyProviderPreset, loadSettings, saveSettings, testApiKey } from "./popup/settings.js";
 
-// 侧边栏面板中会频繁访问这些节点，集中缓存可以避免到处 querySelector。
-const els = {
-  extract: document.querySelector("#extract"),
-  export: document.querySelector("#export"),
-  clear: document.querySelector("#clear"),
-  status: document.querySelector("#status"),
-  count: document.querySelector("#count"),
-  title: document.querySelector("#title"),
-  company: document.querySelector("#company"),
-  location: document.querySelector("#location"),
-  salary: document.querySelector("#salary")
+const state = {
+  jobs: [],
+  view: "jobs",
+  step: "jd",
+  selectedJob: 0,
+  returnView: "jobs",
+  settingsReturnView: "jobs",
+  resumeUploaded: false,
+  search: ""
 };
 
-function setStatus(text) {
-  els.status.textContent = text;
+// 页面路由与主渲染
+function setView(view) {
+  state.view = view;
+  qsa(".view").forEach((node) => node.classList.remove("active"));
+  qs(`#${view}View`).classList.add("active");
+  qsa(".top-tabs button").forEach((button) => button.classList.toggle("active", button.dataset.tab === view));
+  qs("#plugin").classList.toggle("task-mode", view === "detail" || view === "settings");
+  if (view === "favorites") renderFavorites();
 }
 
-// Chrome 扩展 API 仍以 callback 为主。包装成 Promise 后，
-// 后续流程可以用 async/await 串起来，错误处理也更集中。
-function chromeAsync(fn) {
-  return new Promise((resolve, reject) => {
-    fn((result) => {
-      const error = chrome.runtime.lastError;
-      if (error) reject(new Error(error.message));
-      else resolve(result);
+function setStep(step) {
+  state.step = step;
+  qsa(".step-view").forEach((node) => node.classList.remove("active"));
+  qs(`#${step}Step`).classList.add("active");
+  qsa(".flow-tabs button").forEach((button) => button.classList.toggle("active", button.dataset.step === step));
+  qs("#detailView").classList.toggle("detail-mode", step === "jd" || step === "intelligence");
+  updateMatchState();
+}
+
+function currentJob() {
+  return state.jobs[state.selectedJob] || normalizeJobForUi({});
+}
+
+function render() {
+  qs("#count").textContent = String(state.jobs.length);
+  qs("#exportAllBtn").disabled = state.jobs.length === 0;
+  qs("#clearBtn").disabled = state.jobs.length === 0;
+  qs("#exportFavoritesBtn").disabled = state.jobs.every((job) => !job.starred);
+  renderJobs(state.search);
+  renderFavorites();
+  if (state.jobs.length) updateDetailHeader();
+}
+
+function renderJobs(filter = "") {
+  state.search = filter;
+  const hasJobs = state.jobs.length > 0;
+  qs("#emptyPanel").classList.toggle("is-hidden", hasJobs);
+  qs("#searchRow").classList.toggle("is-hidden", !hasJobs);
+
+  if (!hasJobs) {
+    qs("#jobList").innerHTML = "";
+    return;
+  }
+
+  const keyword = filter.trim().toLowerCase();
+  const rows = state.jobs
+    .map((job, index) => ({ job, index }))
+    .filter(({ job }) => jobSearchText(job).toLowerCase().includes(keyword));
+
+  qs("#jobList").innerHTML = rows.length
+    ? rows.map(({ job, index }) => jobCard(job, index)).join("")
+    : `<article class="card"><h2>没有匹配结果</h2><p class="note">换一个关键词试试。</p></article>`;
+
+  bindJobCardActions("#jobList");
+}
+
+function renderFavorites() {
+  const rows = state.jobs.map((job, index) => ({ job, index })).filter(({ job }) => job.starred);
+  qs("#favoriteList").innerHTML = rows.length
+    ? rows.map(({ job, index }) => favoriteCard(job, index)).join("")
+    : `<article class="card"><h2>暂无收藏</h2><p class="note">在岗位卡片右上角点击星标即可收藏重点机会。</p></article>`;
+
+  bindFavoriteCardActions();
+}
+
+// 岗位卡片
+function jobSearchText(job) {
+  return [
+    job.title,
+    job.company,
+    job.location,
+    job.salary,
+    job.experience,
+    job.education,
+    job.sourceSite,
+    keywordsFor(job).join(" ")
+  ].join(" ");
+}
+
+function jobCard(job, index) {
+  return jobCardTemplate(job, index, {
+    selected: index === state.selectedJob,
+    favorite: false,
+    starTitle: "收藏",
+    actions: `
+      <div class="job-actions">
+        <button data-action="detail" type="button">查看详情</button>
+        <button class="deep" data-action="analyze" type="button">深度分析</button>
+      </div>
+    `
+  });
+}
+
+function favoriteCard(job, index) {
+  return jobCardTemplate(job, index, {
+    selected: false,
+    favorite: true,
+    starTitle: "取消收藏",
+    actions: `
+      <div class="favorite-actions">
+        <button class="primary" data-action="intelligence" type="button">深度分析结果</button>
+      </div>
+    `
+  });
+}
+
+function jobCardTemplate(job, index, options) {
+  return `
+    <article class="job-card ${options.selected ? "selected" : ""} ${options.favorite ? "favorite-card" : ""}" data-job="${index}">
+      <div class="job-top">
+        <div>
+          <h2>${escapeHtml(job.title || "未识别职位名")}</h2>
+          <p>${escapeHtml(job.company || "公司待核对")}<br>${escapeHtml(metaLine(job))}</p>
+        </div>
+        <button class="star-btn ${job.starred ? "active" : ""}" data-action="star" type="button" title="${options.starTitle}" aria-label="${options.starTitle}">★</button>
+      </div>
+      <div class="job-tags">${keywordsFor(job).slice(0, 4).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
+      ${options.actions}
+    </article>
+  `;
+}
+
+function bindJobCardActions(rootSelector) {
+  qsa(`${rootSelector} .job-card`).forEach((card) => {
+    const index = Number(card.dataset.job);
+    card.querySelector('[data-action="star"]').addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await toggleStar(index);
+    });
+    card.querySelector('[data-action="detail"]').addEventListener("click", () => openJob(index, "jd"));
+    card.querySelector('[data-action="analyze"]').addEventListener("click", () => openJob(index, "analysis"));
+  });
+}
+
+function bindFavoriteCardActions() {
+  qsa("#favoriteList .job-card").forEach((card) => {
+    const index = Number(card.dataset.job);
+    card.querySelector('[data-action="star"]').addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await toggleStar(index);
+    });
+    card.querySelector('[data-action="intelligence"]').addEventListener("click", () => openJob(index, "intelligence", "favorites"));
+  });
+}
+
+async function toggleStar(index) {
+  if (!state.jobs[index]) return;
+  state.jobs[index].starred = !state.jobs[index].starred;
+  state.jobs = await setJobs(state.jobs);
+  render();
+  updateDetailHeader();
+}
+
+function openJob(index, step, returnView = "jobs") {
+  state.selectedJob = index;
+  state.returnView = returnView;
+  updateDetailHeader();
+  qs("#backBtn").textContent = returnView === "favorites" ? "‹ 返回收藏" : "‹ 返回岗位池";
+  setView("detail");
+  setStep(step);
+}
+
+function updateDetailHeader() {
+  const job = currentJob();
+  const intelligence = intelligenceFor(job);
+
+  qs("#detailTitle").textContent = job.title || "未识别职位名";
+  qs("#detailMeta").textContent = `${job.company || "公司待核对"} · ${metaLine(job)}`;
+  qs("#jdFullTitle").textContent = job.title || "-";
+  qs("#jdFullCompany").textContent = [job.company, job.location].filter(Boolean).join(" · ") || "-";
+  qs("#jdFullMeta").textContent = [job.experience, job.education, job.postedDate, job.sourceSite].filter(Boolean).join(" · ") || "-";
+  qs("#jdFullSalary").textContent = job.salary || "-";
+  qs("#jdDetailText").textContent = job.description || "当前提取结果没有 JD 原文，请核对招聘页面结构。";
+  qs("#detailStar").classList.toggle("active", job.starred);
+
+  qs("#analysisAudience").innerHTML = intelligence.audience.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  qs("#analysisKeywords").innerHTML = intelligence.keywords.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  qs("#analysisResponsibilities").innerHTML = intelligence.responsibilities.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  qs("#intelTitle").textContent = job.title || "-";
+  qs("#intelCompany").textContent = [job.company, job.location].filter(Boolean).join(" · ") || "-";
+  qs("#intelMeta").textContent = [job.experience, job.education, job.postedDate, job.sourceSite].filter(Boolean).join(" · ") || "-";
+  qs("#intelSalary").textContent = job.salary || "-";
+  qs("#intelJdText").textContent = job.description || "";
+  qs("#intelAnalysis").innerHTML = intelligence.analysis.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  qs("#intelSuggestions").innerHTML = intelligence.suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  qs("#intelGreeting").textContent = intelligence.greeting;
+  qs("#greetingText").textContent = intelligence.greeting;
+}
+
+function metaLine(job) {
+  return [job.location, job.salary, job.experience, job.education].filter(Boolean).join(" · ") || "岗位信息待核对";
+}
+
+// 待办功能占位渲染
+function renderMatches() {
+  qs("#matchList").innerHTML = matches.map((item, index) => `
+    <article class="match-item ${index === 0 ? "open" : ""}">
+      <button class="match-summary" type="button">
+        <strong>${escapeHtml(item.title)}</strong>
+        <span class="${item.tone}">● ${escapeHtml(item.state)}</span>
+      </button>
+      <div class="match-detail">${escapeHtml(item.body)}</div>
+    </article>
+  `).join("");
+
+  qsa(".match-summary").forEach((button) => {
+    button.addEventListener("click", () => button.closest(".match-item").classList.toggle("open"));
+  });
+}
+
+function renderSuggestions(list = baseSuggestions) {
+  qs("#suggestList").innerHTML = list.map((item, index) => `
+    <article class="suggest-card ${index === 0 ? "" : "collapsed"}">
+      <header>
+        <div>
+          <h3>${escapeHtml(item.id)} ${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.body)}</p>
+        </div>
+        <span class="priority">${escapeHtml(item.priority)}</span>
+      </header>
+      <div class="suggest-body">
+        <strong>推荐改写</strong>
+        <p>${escapeHtml(suggestionsFor(currentJob(), keywordsFor(currentJob()))[0])}</p>
+      </div>
+      <footer>
+        <button data-action="locate" type="button">定位到简历</button>
+        <button data-action="toggle" type="button">${index === 0 ? "收起" : "展开"}</button>
+      </footer>
+    </article>
+  `).join("");
+
+  qsa('#suggestList [data-action="toggle"]').forEach((button) => {
+    button.addEventListener("click", () => {
+      const card = button.closest(".suggest-card");
+      card.classList.toggle("collapsed");
+      button.textContent = card.classList.contains("collapsed") ? "展开" : "收起";
+    });
+  });
+
+  qsa('#suggestList [data-action="locate"]').forEach((button) => {
+    button.addEventListener("click", () => {
+      setStep("editor");
+      qs("#resumeText").focus();
     });
   });
 }
 
-// 所有提取结果只保存在浏览器本地 storage，不上传到任何服务。
-async function getJobs() {
-  const data = await chromeAsync((done) => chrome.storage.local.get({ [STORAGE_KEY]: [] }, done));
-  return data[STORAGE_KEY] || [];
+function updateMatchState() {
+  qs("#matchUploadPrompt").classList.toggle("is-hidden", state.resumeUploaded);
+  qs("#matchResults").classList.toggle("is-hidden", !state.resumeUploaded);
+  qs("#greetingPrompt").classList.toggle("is-hidden", state.resumeUploaded);
+  qs("#greetingResult").classList.toggle("is-hidden", !state.resumeUploaded);
+  qs("#editorPrompt").classList.toggle("is-hidden", state.resumeUploaded);
+  qs("#editorLayout").classList.toggle("is-hidden", !state.resumeUploaded);
+  qs("#editorActions").classList.toggle("is-hidden", !state.resumeUploaded);
 }
 
-async function setJobs(jobs) {
-  // 覆盖式写入比增量 append 更简单；当前数据量是用户手动采集的 JD 列表，
-  // chrome.storage.local 足够承载，不需要引入 IndexedDB。
-  await chromeAsync((done) => chrome.storage.local.set({ [STORAGE_KEY]: jobs }, done));
+function markResumeUploaded(label) {
+  state.resumeUploaded = true;
+  qs("#resumeStatus").textContent = `已上传：${label}。正在生成匹配分析...`;
+  updateMatchState();
+  setTimeout(() => setStep("match"), 300);
 }
 
-function normalizeForDedupe(value) {
-  // 去重前先统一空白和大小写，避免同一 JD 因换行/空格差异被当成两条。
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+function recheckResume() {
+  const length = qs("#resumeText").textContent.trim().length;
+  const score = Math.min(96, 74 + Math.floor(length / 24));
+  qs("#recheckScore").textContent = `${score}%`;
+  qs("#liveAdvice").innerHTML = score >= 88
+    ? "<li>产品目标表达更清晰</li><li>量化结果较充分</li><li>可继续压缩长句</li>"
+    : "<li>已体现产品目标</li><li>已体现用户价值</li><li>建议继续补充决策过程</li>";
 }
 
-function jobDedupeKey(job) {
-  // 来源链接通常最稳定；同时拼上核心字段，避免列表页同 URL 下切换职位时误判。
-  const sourceUrl = normalizeForDedupe(job.sourceUrl);
-  const identity = [
-    normalizeForDedupe(job.title),
-    normalizeForDedupe(job.company),
-    normalizeForDedupe(job.location),
-    normalizeForDedupe(job.salary)
-  ].filter(Boolean).join("|");
-
-  return sourceUrl ? `${sourceUrl}|${identity}` : identity;
+function generateGreeting() {
+  const job = currentJob();
+  const variants = [
+    greetingFor(job, keywordsFor(job)),
+    `你好，看到${job.company || "贵司"}${job.title || "这个岗位"}后很感兴趣。我的经历和岗位中提到的产品规划、跨团队推动、数据复盘比较匹配，期待有机会和您进一步交流岗位目标和团队现阶段重点。`,
+    `你好，我想投递${job.company || "贵司"}的${job.title || "这个岗位"}。我过去做过需求调研、方案设计、研发协同和上线后的指标复盘，比较契合岗位对执行推进和结构化表达的要求。`
+  ];
+  qs("#greetingText").textContent = variants[Math.floor(Math.random() * variants.length)];
+  qs("#copyStatus").textContent = "已重新生成，可复制后按投递场景微调。";
 }
 
-function dedupeJobs(jobs) {
-  // 保留第一次出现的记录，后续重复项丢弃；这样不会改变用户原有收集顺序。
-  const seen = new Set();
-  const unique = [];
+// 事件绑定与启动
+function bindEvents() {
+  qs("#settingsBtn").addEventListener("click", () => {
+    state.settingsReturnView = state.view;
+    setView("settings");
+  });
 
-  for (const job of jobs) {
-    const key = jobDedupeKey(job);
-    if (!key) {
-      unique.push(job);
-      continue;
+  qs("#settingsBackBtn").addEventListener("click", () => setView(state.settingsReturnView));
+  qs("#backBtn").addEventListener("click", () => setView(state.returnView));
+
+  qsa(".top-tabs button").forEach((button) => {
+    button.addEventListener("click", () => setView(button.dataset.tab));
+  });
+
+  qsa(".flow-tabs button").forEach((button) => {
+    button.addEventListener("click", () => setStep(button.dataset.step));
+  });
+
+  qs("#extractBtn").addEventListener("click", async () => {
+    qs("#extractBtn").disabled = true;
+    setStatus("正在提取当前页面...");
+
+    try {
+      const job = await extractFromCurrentTab();
+      const result = appendUniqueJob(state.jobs, job);
+      state.jobs = await setJobs(result.jobs);
+      state.selectedJob = state.jobs.length - 1;
+      render();
+      setStatus(result.added ? "已保存到岗位池" : "已存在相同 JD，未重复保存");
+    } catch (error) {
+      setStatus(error.message || "提取失败");
+    } finally {
+      qs("#extractBtn").disabled = false;
     }
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(job);
-  }
+  });
 
-  return unique;
-}
+  qs("#jobSearch").addEventListener("input", (event) => renderJobs(event.target.value));
+  qs("#exportAllBtn").addEventListener("click", () => exportJobs(state.jobs, qs("#exportAllBtn"), "暂无 JD"));
+  qs("#exportFavoritesBtn").addEventListener("click", () => {
+    exportJobs(state.jobs.filter((job) => job.starred), qs("#exportFavoritesBtn"), "暂无收藏");
+  });
+  qs("#clearBtn").addEventListener("click", async () => {
+    state.jobs = await setJobs([]);
+    state.selectedJob = 0;
+    render();
+    setStatus("岗位池已清空");
+  });
 
-function appendUniqueJob(jobs, job) {
-  // 保存时就去重，避免面板计数和最终 Excel 数量不一致。
-  const nextJobs = dedupeJobs([...jobs, job]);
-  return {
-    jobs: nextJobs,
-    added: nextJobs.length > dedupeJobs(jobs).length
-  };
-}
+  qs("#detailStar").addEventListener("click", async () => toggleStar(state.selectedJob));
+  qs("#detailAnalyzeBtn").addEventListener("click", () => setStep("analysis"));
+  qs("#copyJdBtn").addEventListener("click", () => {
+    copyText(qs("#jdDetailText").textContent.trim());
+    flashButton(qs("#copyJdBtn"), "已复制");
+  });
 
-// 面板只展示最近一次提取的核心字段；完整字段在导出的 Excel 中。
-function render(jobs) {
-  const latest = jobs[jobs.length - 1] || {};
-  els.count.textContent = String(jobs.length);
-  els.title.textContent = latest.title || "-";
-  els.company.textContent = latest.company || "-";
-  els.location.textContent = latest.location || "-";
-  els.salary.textContent = latest.salary || "-";
-  els.export.disabled = jobs.length === 0;
-  els.clear.disabled = jobs.length === 0;
-}
-
-// 获取当前激活标签页。所有提取动作都只作用于这个标签页。
-async function activeTab() {
-  const tabs = await chromeAsync((done) => chrome.tabs.query({ active: true, currentWindow: true }, done));
-  return tabs[0];
-}
-
-async function extractFromCurrentTab() {
-  const tab = await activeTab();
-  if (!tab || !tab.id) throw new Error("没有找到当前标签页");
-
-  // 只把“提取”命令发给 content script；字段解析逻辑都留在页面上下文中完成。
-  // 这样侧边栏面板不需要知道招聘网站 DOM，也不会因为跨上下文访问 DOM 失败。
-  const response = await sendMessageWithInjection(tab.id, { type: "JDGET_EXTRACT" });
-  if (!response || !response.ok) throw new Error((response && response.message) || "页面没有返回 JD 信息");
-  return response.job;
-}
-
-// 如果页面是在扩展安装前打开的，content script 可能还没注入。
-// 第一次发送消息失败时，主动注入 src/content.js 后再重试。
-async function sendMessageWithInjection(tabId, message) {
-  let response;
-
-  try {
-    response = await sendMessage(tabId, message);
-  } catch (_error) {
-    await chromeAsync((done) => {
-      chrome.scripting.executeScript({ target: { tabId }, files: ["src/content.js"] }, done);
+  qs("#resumeFile").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (file) markResumeUploaded(file.name);
+  });
+  qs("#exampleResumeBtn").addEventListener("click", () => markResumeUploaded("示例简历.pdf"));
+  qs("#toGreetingBtn").addEventListener("click", () => setStep("greeting"));
+  qs("#toEditorBtn").addEventListener("click", () => setStep("editor"));
+  qs("#goMatchUploadBtn").addEventListener("click", () => setStep("match"));
+  qs("#goEditorUploadBtn").addEventListener("click", () => setStep("match"));
+  qs("#generateGreetingBtn").addEventListener("click", generateGreeting);
+  qs("#copyGreetingBtn").addEventListener("click", () => {
+    const copied = copyText(qs("#greetingText").textContent.trim());
+    qs("#copyStatus").textContent = copied ? "已复制到剪贴板。" : "浏览器限制了复制权限，请手动选中文案复制。";
+  });
+  qs("#sortSuggest").addEventListener("change", (event) => {
+    const sorted = [...baseSuggestions].sort((a, b) => {
+      if (event.target.value === "status") return a.title.localeCompare(b.title, "zh-CN");
+      return a.priority === "高优先级" ? -1 : b.priority === "高优先级" ? 1 : 0;
     });
-    response = await sendMessage(tabId, message);
-  }
+    renderSuggestions(sorted);
+  });
+  qs("#recheckBtn").addEventListener("click", recheckResume);
+  qs("#resumeText").addEventListener("input", recheckResume);
+  qs("#saveResumeBtn").addEventListener("click", () => flashButton(qs("#saveResumeBtn"), "已保存"));
+  qs("#exportPdfBtn").addEventListener("click", () => {
+    document.body.classList.add("print-resume");
+    window.print();
+    setTimeout(() => document.body.classList.remove("print-resume"), 300);
+  });
 
-  return response;
-}
-
-function sendMessage(tabId, message) {
-  // chrome.tabs.sendMessage 会把消息发到指定标签页的 content script。
-  // 如果目标页是 chrome://、扩展页或浏览器禁止注入的页面，调用会失败并进入上层 catch。
-  return chromeAsync((done) => {
-    chrome.tabs.sendMessage(tabId, message, done);
+  qs("#apiProvider").addEventListener("change", (event) => applyProviderPreset(event.target.value));
+  qs("#testApiBtn").addEventListener("click", testApiKey);
+  qs("#apiForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveSettings();
+    qs("#apiStatus").className = "api-status ok";
+    qs("#apiStatus").textContent = "设置已保存到本地。";
   });
 }
 
-// Excel 的列顺序由这里决定。只保留当前真正需要的字段，
-// content.js 中用于调试或未来扩展的字段不会自动进入表格。
-function jobRows(jobs) {
-  // 对象 key 会成为 xlsx 第一行表头；这里使用中文 key，用户打开 Excel 即可直接阅读。
-  return dedupeJobs(jobs).map((job) => ({
-    "岗位": job.title || "",
-    "公司": job.company || "",
-    "工作地点": job.location || "",
-    "工作经验": job.experience || "",
-    "学历要求": job.education || "",
-    "薪资": job.salary || "",
-    "JD原文": job.description || "",
-    "发布日期": job.postedDate || "",
-    "来源网站": job.sourceSite || inferSourceSite(job.sourceUrl),
-    "来源链接": job.sourceUrl || ""
-  }));
+async function init() {
+  bindEvents();
+  renderMatches();
+  renderSuggestions();
+  updateMatchState();
+  state.jobs = await getJobs();
+  await loadSettings();
+  render();
+  setStatus(state.jobs.length ? "可以继续提取或导出" : "准备提取当前页面");
+  setView("jobs");
+  setStep("jd");
 }
 
-function inferSourceSite(sourceUrl) {
-  // 兼容旧缓存：历史记录没有 sourceSite 时，导出前从链接反推来源网站。
-  const url = String(sourceUrl || "");
-  if (/zhipin\.com/i.test(url)) return "boss直聘";
-  if (/zhaopin\.com/i.test(url)) return "智联招聘";
-  if (/liepin\.com/i.test(url)) return "猎聘";
-  return "";
-}
-
-async function downloadWorkbook(jobs) {
-  // xlsx.js 暴露 JDGET_XLSX.createWorkbookBlob，返回标准 Excel MIME Blob。
-  // 侧边栏面板只负责把业务数据映射成表格行，不处理底层 zip/xml 细节。
-  const blob = window.JDGET_XLSX.createWorkbookBlob(jobRows(jobs), "JD信息");
-  const date = new Date().toISOString().slice(0, 10);
-  await downloadBlob(blob, `JDGET-${date}.xlsx`, true);
-}
-
-async function downloadBlob(blob, filename, saveAs) {
-  // downloads API 需要可下载 URL。Blob URL 只在当前扩展上下文有效，
-  // 下载任务创建后延迟释放，避免浏览器还没读取完就 revoke。
-  const url = URL.createObjectURL(blob);
-
-  await chromeAsync((done) => {
-    chrome.downloads.download(
-      {
-        url,
-        filename,
-        saveAs
-      },
-      done
-    );
-  });
-
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
-}
-
-// “提取当前 JD”：读取当前页面结构，追加到本地列表。
-els.extract.addEventListener("click", async () => {
-  els.extract.disabled = true;
-  setStatus("正在提取当前页面...");
-
-  try {
-    const job = await extractFromCurrentTab();
-    const jobs = await getJobs();
-    const result = appendUniqueJob(jobs, job);
-    await setJobs(result.jobs);
-    render(result.jobs);
-    if (!result.added) {
-      setStatus("已存在相同 JD，未重复保存");
-    } else {
-      setStatus(job.title ? "已保存到本地列表" : "已保存，但职位名可能需要手动核对");
-    }
-  } catch (error) {
-    setStatus(error.message || "提取失败");
-  } finally {
-    els.extract.disabled = false;
-  }
-});
-
-// “导出 Excel”：把本地列表转换为 xlsx 文件并交给浏览器下载。
-els.export.addEventListener("click", async () => {
-  setStatus("正在生成 Excel...");
-
-  try {
-    const jobs = await getJobs();
-    const uniqueJobs = dedupeJobs(jobs);
-    if (uniqueJobs.length !== jobs.length) {
-      await setJobs(uniqueJobs);
-    }
-    await downloadWorkbook(uniqueJobs);
-    setStatus(uniqueJobs.length === jobs.length ? "Excel 已发送到下载目录" : "Excel 已去重并发送到下载目录");
-  } catch (error) {
-    setStatus(error.message || "导出失败");
-  }
-});
-
-// 清空只影响本地缓存的提取记录，不会修改页面内容。
-els.clear.addEventListener("click", async () => {
-  await setJobs([]);
-  render([]);
-  setStatus("列表已清空");
-});
-
-// 面板打开时立即恢复本地记录数量和最近一条预览。
-getJobs()
-  .then((jobs) => {
-    const uniqueJobs = dedupeJobs(jobs);
-    render(uniqueJobs);
-    if (uniqueJobs.length !== jobs.length) {
-      setJobs(uniqueJobs).catch(() => {});
-      setStatus("已清理本地重复 JD");
-    } else {
-      setStatus(jobs.length ? "可以继续提取或导出" : "准备提取当前页面");
-    }
-  })
-  .catch((error) => setStatus(error.message || "读取本地数据失败"));
+init().catch((error) => setStatus(error.message || "初始化失败"));
