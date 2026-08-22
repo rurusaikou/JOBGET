@@ -1,13 +1,13 @@
 import { JOB_KEYWORDS } from "./data/job-keywords.js";
-import { baseSuggestions } from "./data/match-data.js";
 
-// 待办功能的本地占位逻辑：后续会替换为模型返回的结构化结果。
+// 本地规则仍服务于关键词和沟通草稿；深度分析结果只使用模型返回。
 export function intelligenceFor(job) {
   const keywords = keywordsFor(job);
   const responsibilities = responsibilitiesFor(job);
   const audience = audienceFor(job, keywords);
   const suggestions = suggestionsFor(job, keywords);
   const greeting = greetingFor(job, keywords);
+  const deepAnalysis = job && job.deepAnalysis ? job.deepAnalysis : null;
 
   return {
     audience,
@@ -18,8 +18,9 @@ export function intelligenceFor(job) {
     analysis: [
       ...audience,
       `关键词集中在：${keywords.slice(0, 8).join("、") || "岗位职责、经验要求、协作能力"}。`,
-      `简历中建议优先回应：${suggestions[0] || "项目目标、行动和结果"}`
-    ]
+      "简历修改建议请在“匹配”页查看，那里会结合当前 JD 和已结构化的 Resume JSON 生成。"
+    ],
+    deepAnalysis
   };
 }
 
@@ -31,12 +32,12 @@ export function keywordsFor(job) {
 }
 
 export function suggestionsFor(job, keywords) {
-  const suggestions = baseSuggestions.map((item) => item.body);
+  const suggestions = ["上传并结构化简历后，请到“匹配”页查看针对当前 JD 的修改建议。"];
   if (keywords.some((keyword) => /AI|LLM|Agent|RAG|Prompt/i.test(keyword))) {
-    suggestions.unshift("强化 AI 项目的产品目标、场景定义、评估指标和上线结果。");
+    suggestions.push("当前 JD 强调 AI 相关能力，后续匹配时应优先检查简历中是否有场景、指标和结果证据。");
   }
   if (job.experience) {
-    suggestions.push(`围绕 ${job.experience} 的要求，选择最能证明独立负责程度的项目经历。`);
+    suggestions.push(`当前 JD 标注 ${job.experience}，后续匹配时应检查简历经历年限和独立负责程度。`);
   }
   return suggestions.slice(0, 4);
 }

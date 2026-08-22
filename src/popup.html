@@ -109,17 +109,28 @@
         </div>
 
         <div id="analysisStep" class="step-view">
-          <article class="card jd-analysis-card">
-            <h2>岗位到底要什么人</h2>
+          <article id="analysisStatusCard" class="analysis-state card">
+            <div>
+              <h2 id="analysisStatusTitle">深度分析</h2>
+              <p id="analysisStatusText">点击岗位池中的“深度分析”后，将基于当前 JD 内容生成结构化分析。</p>
+            </div>
+            <button id="retryAnalysisBtn" class="soft-btn is-hidden" type="button">重新分析</button>
+          </article>
+          <article class="card jd-analysis-card analysis-result-card">
+            <h2>岗位本质</h2>
+            <ul id="analysisEssence"></ul>
+          </article>
+          <article class="card jd-analysis-card analysis-result-card">
+            <h2>核心要求</h2>
             <ul id="analysisAudience"></ul>
           </article>
-          <article class="card jd-analysis-card">
-            <h2>关键词</h2>
-            <ul id="analysisKeywords" class="keyword-list"></ul>
+          <article class="card jd-analysis-card analysis-result-card">
+            <h2>隐形要求</h2>
+            <ul id="analysisHidden"></ul>
           </article>
-          <article class="card jd-analysis-card">
-            <h2>核心职责</h2>
-            <ul id="analysisResponsibilities"></ul>
+          <article class="card jd-analysis-card analysis-result-card">
+            <h2>理想候选人</h2>
+            <ul id="analysisIdeal"></ul>
           </article>
         </div>
 
@@ -162,40 +173,40 @@
 
         <div id="matchStep" class="step-view">
           <article id="matchUploadPrompt" class="upload-card">
-            <h2>上传简历后开始匹配</h2>
-            <p id="resumeStatus">当前还没有简历。上传 PDF / Word / HTML / TXT 后，系统会对比 JD 与简历并生成匹配结果和优化建议。</p>
+            <h2>简历结构化</h2>
+            <p id="resumeStatus">当前还没有简历。上传 PDF / DOCX 后，系统会在本地提取文本、识别章节并生成 Resume JSON。</p>
             <label class="upload-btn">
-              上传简历
-              <input id="resumeFile" type="file" accept=".pdf,.doc,.docx,.html,.txt">
+              上传 / 替换简历
+              <input id="resumeFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
             </label>
-            <button id="exampleResumeBtn" class="primary" type="button">使用示例简历开始匹配</button>
+            <div class="upload-actions">
+              <button id="exampleResumeBtn" class="soft-btn" type="button">使用示例</button>
+              <button id="clearResumeBtn" class="danger-btn" type="button">清除简历</button>
+            </div>
           </article>
           <div id="matchResults" class="match-results is-hidden">
             <article class="score-card">
-              <span>整体匹配度</span>
-              <strong id="matchScore">78%</strong>
-              <em>较匹配</em>
-              <div class="progress"><span></span></div>
+              <span>简历与 JD 匹配度</span>
+              <strong id="matchScore">0%</strong>
+              <em id="matchVerdict">等待分析</em>
+              <div class="progress"><span id="matchProgress"></span></div>
             </article>
             <div class="metric-grid">
-              <div><strong>5</strong><span>已匹配</span></div>
-              <div><strong>3</strong><span>表达不足</span></div>
-              <div><strong>2</strong><span>暂无证据</span></div>
+              <div><strong id="matchMatchedCount">0</strong><span>已匹配</span></div>
+              <div><strong id="matchPartialCount">0</strong><span>待补强</span></div>
+              <div><strong id="matchMissingCount">0</strong><span>暂无证据</span></div>
             </div>
             <div id="matchList" class="match-list"></div>
-            <div class="suggest-toolbar">
-              <strong>简历优化建议</strong>
-              <select id="sortSuggest" aria-label="建议排序">
-                <option value="importance">按重要性</option>
-                <option value="status">按状态</option>
-              </select>
-            </div>
-            <div id="suggestList" class="suggest-list"></div>
+            <article class="card resume-suggestions">
+              <h2>简历修改建议</h2>
+              <div id="suggestList" class="resume-revision-list"></div>
+            </article>
             <div class="match-actions">
+              <button id="analyzeResumeMatchBtn" class="soft-btn" type="button">重新分析</button>
               <button id="toGreetingBtn" class="soft-btn" type="button">生成求职开场白</button>
               <button id="toEditorBtn" class="primary" type="button">进入简历编辑</button>
             </div>
-            <p class="note">AI 建议仅供参考，请结合自身情况判断。</p>
+            <p class="note">匹配会把当前 JD、JD 深度分析结果和简历发送到你配置的模型服务。</p>
           </div>
         </div>
 
@@ -224,30 +235,18 @@
             <button id="goEditorUploadBtn" class="primary" type="button">去上传简历</button>
           </article>
           <div id="editorLayout" class="editor-layout is-hidden">
-            <section class="resume-paper" id="resumePaper">
-              <h2 contenteditable="true">陆阳</h2>
-              <p contenteditable="true">AI 产品经理 · 深圳 · luyang@example.com</p>
-              <h3>项目经历</h3>
-              <div id="resumeText" class="editable" contenteditable="true">负责企业知识库产品 0 到 1 的规划设计，完成用户调研、需求拆解、RAG 能力接入与效果评估。协同算法和研发团队推动上线，月活提升 40%，企业客户续费率提升 25%。</div>
-              <h3>教育经历</h3>
-              <p contenteditable="true">天津大学 · 计算机技术 · 硕士 · 2022.09 - 2024.07</p>
+            <section class="resume-paper" id="resumePaper" tabindex="-1">
+              <h2>简历编辑</h2>
+              <p class="resume-empty">上传 PDF / DOCX 后会在这里生成可编辑的结构化简历。</p>
             </section>
-            <aside class="ai-advice">
-              <h2>AI 实时建议</h2>
-              <div class="mini-score">
-                <span>当前匹配度</span>
-                <strong id="recheckScore">82%</strong>
-                <button id="recheckBtn" type="button">重新检查</button>
-              </div>
-              <ul id="liveAdvice">
-                <li>已体现产品目标</li>
-                <li>已体现用户价值</li>
-                <li>建议继续补充决策过程</li>
-              </ul>
+            <aside class="resume-side">
+              <h2>结构化摘要</h2>
+              <dl id="resumeSummary"></dl>
             </aside>
           </div>
           <div id="editorActions" class="editor-actions is-hidden">
             <button id="saveResumeBtn" class="soft-btn" type="button">保存简历</button>
+            <button id="clearResumeEditorBtn" class="danger-btn" type="button">清除简历</button>
             <button id="exportPdfBtn" class="primary" type="button">导出 PDF</button>
           </div>
         </div>
@@ -287,6 +286,7 @@
           <label>
             <span>API Key</span>
             <input id="apiKey" type="password" placeholder="sk-...">
+            <small>仅保存在当前浏览器会话，关闭浏览器后需要重新输入。</small>
           </label>
           <div class="form-row">
             <button id="testApiBtn" type="button" class="soft-btn">测试密钥</button>
@@ -298,6 +298,8 @@
     </aside>
 
     <script src="./xlsx.js"></script>
+    <script src="./vendor/pdf.min.js"></script>
+    <script src="./vendor/mammoth.browser.min.js"></script>
     <script type="module" src="./popup.js"></script>
   </body>
 </html>

@@ -1,22 +1,33 @@
-import { SETTINGS_KEY } from "./constants.js";
+import { API_KEY_SESSION_KEY, SETTINGS_KEY } from "./constants.js";
 import { apiProviderPresets } from "./data/api-providers.js";
 import { qs } from "./dom.js";
-import { getLocal, setLocal } from "./storage.js";
+import { getLocal, getSession, setLocal, setSession } from "./storage.js";
+
+export const defaultSettings = {
+  provider: "openai",
+  baseUrl: "https://api.openai.com/v1",
+  model: "gpt-4.1-mini"
+};
 
 export async function loadSettings() {
-  const data = await getLocal({
-    [SETTINGS_KEY]: {
-      provider: "openai",
-      baseUrl: "https://api.openai.com/v1",
-      model: "gpt-4.1-mini",
-      apiKey: ""
-    }
-  });
-  const settings = data[SETTINGS_KEY];
+  const data = await getLocal({ [SETTINGS_KEY]: defaultSettings });
+  const settings = await migratePlaintextApiKey(data[SETTINGS_KEY] || defaultSettings);
+  const session = await getSession({ [API_KEY_SESSION_KEY]: "" });
   qs("#apiProvider").value = settings.provider || "openai";
   qs("#baseUrl").value = settings.baseUrl || apiProviderPresets.openai.baseUrl;
   qs("#modelName").value = settings.model || apiProviderPresets.openai.model;
-  qs("#apiKey").value = settings.apiKey || "";
+  qs("#apiKey").value = session[API_KEY_SESSION_KEY] || "";
+}
+
+export async function getSettings() {
+  const data = await getLocal({ [SETTINGS_KEY]: defaultSettings });
+  const settings = await migratePlaintextApiKey(data[SETTINGS_KEY] || defaultSettings);
+  const session = await getSession({ [API_KEY_SESSION_KEY]: "" });
+  return {
+    ...defaultSettings,
+    ...settings,
+    apiKey: session[API_KEY_SESSION_KEY] || ""
+  };
 }
 
 export async function saveSettings() {
@@ -24,10 +35,10 @@ export async function saveSettings() {
     [SETTINGS_KEY]: {
       provider: qs("#apiProvider").value,
       baseUrl: qs("#baseUrl").value.trim(),
-      model: qs("#modelName").value.trim(),
-      apiKey: qs("#apiKey").value.trim()
+      model: qs("#modelName").value.trim()
     }
   });
+  await setSession({ [API_KEY_SESSION_KEY]: qs("#apiKey").value.trim() });
 }
 
 export function applyProviderPreset(provider) {
@@ -54,6 +65,21 @@ export function testApiKey() {
       return;
     }
     status.classList.add("ok");
-    status.textContent = "格式校验通过：当前版本尚未发送真实模型请求。";
+    status.textContent = "格式校验通过：API Key 仅保存到当前浏览器会话。";
   }, 500);
+}
+
+async function migratePlaintextApiKey(settings) {
+  if (!settings || !settings.apiKey) return withoutApiKey(settings || {});
+
+  // 旧版本曾把 API Key 写入 chrome.storage.local；加载设置时迁移到 session 并覆盖清理。
+  await setSession({ [API_KEY_SESSION_KEY]: settings.apiKey });
+  const migrated = withoutApiKey(settings);
+  await setLocal({ [SETTINGS_KEY]: migrated });
+  return migrated;
+}
+
+function withoutApiKey(settings) {
+  const { apiKey: _apiKey, ...publicSettings } = settings || {};
+  return { ...defaultSettings, ...publicSettings };
 }

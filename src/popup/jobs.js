@@ -1,4 +1,5 @@
 import { STORAGE_KEY } from "./constants.js";
+import { normalizeStoredDeepAnalysis } from "./deep-analysis/result.js";
 import { getLocal, setLocal } from "./storage.js";
 
 export async function getJobs() {
@@ -53,7 +54,8 @@ export function normalizeJobForUi(job) {
     postedDate: job && job.postedDate ? job.postedDate : "",
     sourceSite: job && job.sourceSite ? job.sourceSite : inferSourceSite(job && job.sourceUrl),
     sourceUrl: job && job.sourceUrl ? job.sourceUrl : "",
-    starred: Boolean(job && job.starred)
+    starred: Boolean(job && job.starred),
+    deepAnalysis: normalizeStoredDeepAnalysis(job && job.deepAnalysis)
   };
 }
 

@@ -1,10 +1,15 @@
-import { baseSuggestions, matches } from "./popup/data/match-data.js";
+import { analyzeJobWithAi } from "./popup/deep-analysis/client.js";
+import { validateJobForAnalysis } from "./popup/deep-analysis/result.js";
+import { renderDeepAnalysis } from "./popup/deep-analysis/view.js";
 import { copyText, escapeHtml, flashButton, qs, qsa, setStatus } from "./popup/dom.js";
 import { exportJobs } from "./popup/export.js";
 import { extractFromCurrentTab } from "./popup/extract.js";
 import { appendUniqueJob, getJobs, normalizeJobForUi, setJobs } from "./popup/jobs.js";
-import { greetingFor, intelligenceFor, keywordsFor, suggestionsFor } from "./popup/intelligence.js";
-import { applyProviderPreset, loadSettings, saveSettings, testApiKey } from "./popup/settings.js";
+import { greetingFor, intelligenceFor, keywordsFor } from "./popup/intelligence.js";
+import { applyEditorAction, clearCurrentResume, handleResumeFile, restoreResume, saveResumeFromEditor, useExampleResume } from "./popup/resume/workflow.js";
+import { analyzeResumeMatchWithAi } from "./popup/resume-match/client.js";
+import { renderResumeMatchView } from "./popup/resume-match/view.js";
+import { applyProviderPreset, getSettings, loadSettings, saveSettings, testApiKey } from "./popup/settings.js";
 
 const state = {
   jobs: [],
@@ -14,7 +19,16 @@ const state = {
   returnView: "jobs",
   settingsReturnView: "jobs",
   resumeUploaded: false,
-  search: ""
+  search: "",
+  analyzingJob: null,
+  analysisRequestId: 0,
+  analysisError: null,
+  resume: null,
+  resumeMatchRequestId: 0,
+  resumeMatchLoading: false,
+  resumeMatchError: null,
+  resumeMatchResult: null,
+  resumeMatchKey: ""
 };
 
 // 页面路由与主渲染
@@ -147,7 +161,9 @@ function bindJobCardActions(rootSelector) {
       await toggleStar(index);
     });
     card.querySelector('[data-action="detail"]').addEventListener("click", () => openJob(index, "jd"));
-    card.querySelector('[data-action="analyze"]').addEventListener("click", () => openJob(index, "analysis"));
+    card.querySelector('[data-action="analyze"]').addEventListener("click", () => {
+      openJob(index, "analysis", "jobs", { analyze: !state.jobs[index].deepAnalysis });
+    });
   });
 }
 
@@ -158,7 +174,7 @@ function bindFavoriteCardActions() {
       event.stopPropagation();
       await toggleStar(index);
     });
-    card.querySelector('[data-action="intelligence"]').addEventListener("click", () => openJob(index, "intelligence", "favorites"));
+    card.querySelector('[data-action="intelligence"]').addEventListener("click", () => openJob(index, "analysis", "favorites", { analyze: !state.jobs[index].deepAnalysis }));
   });
 }
 
@@ -170,13 +186,26 @@ async function toggleStar(index) {
   updateDetailHeader();
 }
 
-function openJob(index, step, returnView = "jobs") {
+function openJob(index, step, returnView = "jobs", options = {}) {
   state.selectedJob = index;
   state.returnView = returnView;
   updateDetailHeader();
   qs("#backBtn").textContent = returnView === "favorites" ? "‹ 返回收藏" : "‹ 返回岗位池";
   setView("detail");
   setStep(step);
+  if (options.analyze) startDeepAnalysis(index);
+}
+
+function analyzeCurrentJobIfNeeded() {
+  const job = currentJob();
+  // 已有分析结果时只切到结果页，避免用户从岗位池/详情页进入时反复调用模型。
+  if (job.deepAnalysis) {
+    setStep("analysis");
+    return;
+  }
+
+  setStep("analysis");
+  startDeepAnalysis();
 }
 
 function updateDetailHeader() {
@@ -192,9 +221,7 @@ function updateDetailHeader() {
   qs("#jdDetailText").textContent = job.description || "当前提取结果没有 JD 原文，请核对招聘页面结构。";
   qs("#detailStar").classList.toggle("active", job.starred);
 
-  qs("#analysisAudience").innerHTML = intelligence.audience.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-  qs("#analysisKeywords").innerHTML = intelligence.keywords.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-  qs("#analysisResponsibilities").innerHTML = intelligence.responsibilities.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  renderDeepAnalysis(job, intelligence, state);
   qs("#intelTitle").textContent = job.title || "-";
   qs("#intelCompany").textContent = [job.company, job.location].filter(Boolean).join(" · ") || "-";
   qs("#intelMeta").textContent = [job.experience, job.education, job.postedDate, job.sourceSite].filter(Boolean).join(" · ") || "-";
@@ -204,90 +231,127 @@ function updateDetailHeader() {
   qs("#intelSuggestions").innerHTML = intelligence.suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   qs("#intelGreeting").textContent = intelligence.greeting;
   qs("#greetingText").textContent = intelligence.greeting;
+  if (state.resumeUploaded) renderCurrentResumeMatch();
+}
+
+async function startDeepAnalysis(index = state.selectedJob) {
+  const job = state.jobs[index];
+  if (!job) return;
+
+  const validation = validateJobForAnalysis(job);
+  if (!validation.ok) {
+    renderDeepAnalysis(job, intelligenceFor(job), state);
+    setStatus(validation.message);
+    return;
+  }
+
+  const requestId = state.analysisRequestId + 1;
+  state.analysisRequestId = requestId;
+  state.analyzingJob = index;
+  state.analysisError = null;
+  updateDetailHeader();
+  setStatus("正在进行深度分析...");
+
+  try {
+    const settings = await getSettings();
+    const result = await analyzeJobWithAi(job, settings);
+    // 用户可能在请求过程中切换岗位，旧请求返回后不能覆盖新页面状态。
+    if (requestId !== state.analysisRequestId) return;
+
+    state.jobs[index] = { ...state.jobs[index], deepAnalysis: result };
+    state.jobs = await setJobs(state.jobs);
+    state.selectedJob = Math.min(index, state.jobs.length - 1);
+    state.analysisError = null;
+    setStatus("深度分析已完成");
+  } catch (error) {
+    if (requestId === state.analysisRequestId) {
+      state.analysisError = { index, message: error.message || "分析失败，请稍后重试。" };
+      setStatus(state.analysisError.message);
+    }
+  } finally {
+    if (requestId === state.analysisRequestId) {
+      state.analyzingJob = null;
+      updateDetailHeader();
+    }
+  }
 }
 
 function metaLine(job) {
   return [job.location, job.salary, job.experience, job.education].filter(Boolean).join(" · ") || "岗位信息待核对";
 }
 
-// 待办功能占位渲染
-function renderMatches() {
-  qs("#matchList").innerHTML = matches.map((item, index) => `
-    <article class="match-item ${index === 0 ? "open" : ""}">
-      <button class="match-summary" type="button">
-        <strong>${escapeHtml(item.title)}</strong>
-        <span class="${item.tone}">● ${escapeHtml(item.state)}</span>
-      </button>
-      <div class="match-detail">${escapeHtml(item.body)}</div>
-    </article>
-  `).join("");
-
-  qsa(".match-summary").forEach((button) => {
-    button.addEventListener("click", () => button.closest(".match-item").classList.toggle("open"));
-  });
-}
-
-function renderSuggestions(list = baseSuggestions) {
-  qs("#suggestList").innerHTML = list.map((item, index) => `
-    <article class="suggest-card ${index === 0 ? "" : "collapsed"}">
-      <header>
-        <div>
-          <h3>${escapeHtml(item.id)} ${escapeHtml(item.title)}</h3>
-          <p>${escapeHtml(item.body)}</p>
-        </div>
-        <span class="priority">${escapeHtml(item.priority)}</span>
-      </header>
-      <div class="suggest-body">
-        <strong>推荐改写</strong>
-        <p>${escapeHtml(suggestionsFor(currentJob(), keywordsFor(currentJob()))[0])}</p>
-      </div>
-      <footer>
-        <button data-action="locate" type="button">定位到简历</button>
-        <button data-action="toggle" type="button">${index === 0 ? "收起" : "展开"}</button>
-      </footer>
-    </article>
-  `).join("");
-
-  qsa('#suggestList [data-action="toggle"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      const card = button.closest(".suggest-card");
-      card.classList.toggle("collapsed");
-      button.textContent = card.classList.contains("collapsed") ? "展开" : "收起";
-    });
-  });
-
-  qsa('#suggestList [data-action="locate"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      setStep("editor");
-      qs("#resumeText").focus();
-    });
-  });
-}
-
 function updateMatchState() {
-  qs("#matchUploadPrompt").classList.toggle("is-hidden", state.resumeUploaded);
+  qs("#matchUploadPrompt").classList.remove("is-hidden");
   qs("#matchResults").classList.toggle("is-hidden", !state.resumeUploaded);
   qs("#greetingPrompt").classList.toggle("is-hidden", state.resumeUploaded);
   qs("#greetingResult").classList.toggle("is-hidden", !state.resumeUploaded);
   qs("#editorPrompt").classList.toggle("is-hidden", state.resumeUploaded);
   qs("#editorLayout").classList.toggle("is-hidden", !state.resumeUploaded);
   qs("#editorActions").classList.toggle("is-hidden", !state.resumeUploaded);
+  qs("#clearResumeBtn").disabled = !state.resumeUploaded;
+  qs("#clearResumeEditorBtn").disabled = !state.resumeUploaded;
+  if (state.resumeUploaded) renderCurrentResumeMatch();
 }
 
-function markResumeUploaded(label) {
-  state.resumeUploaded = true;
-  qs("#resumeStatus").textContent = `已上传：${label}。正在生成匹配分析...`;
-  updateMatchState();
-  setTimeout(() => setStep("match"), 300);
+function renderCurrentResumeMatch() {
+  if (state.resumeMatchKey && state.resumeMatchKey !== currentResumeMatchKey()) {
+    state.resumeMatchResult = null;
+    state.resumeMatchError = null;
+    state.resumeMatchLoading = false;
+  }
+  renderResumeMatchView(state);
 }
 
-function recheckResume() {
-  const length = qs("#resumeText").textContent.trim().length;
-  const score = Math.min(96, 74 + Math.floor(length / 24));
-  qs("#recheckScore").textContent = `${score}%`;
-  qs("#liveAdvice").innerHTML = score >= 88
-    ? "<li>产品目标表达更清晰</li><li>量化结果较充分</li><li>可继续压缩长句</li>"
-    : "<li>已体现产品目标</li><li>已体现用户价值</li><li>建议继续补充决策过程</li>";
+async function startResumeMatchAnalysis() {
+  if (!state.resumeUploaded || !state.resume) return;
+
+  const requestId = state.resumeMatchRequestId + 1;
+  state.resumeMatchRequestId = requestId;
+  state.resumeMatchLoading = true;
+  state.resumeMatchError = null;
+  state.resumeMatchResult = null;
+  state.resumeMatchKey = currentResumeMatchKey();
+  renderCurrentResumeMatch();
+
+  try {
+    const settings = await getSettings();
+    const result = await analyzeResumeMatchWithAi({
+      job: currentJob(),
+      resume: state.resume,
+      settings
+    });
+    if (requestId !== state.resumeMatchRequestId) return;
+    state.resumeMatchResult = result;
+    state.resumeMatchError = null;
+  } catch (error) {
+    if (requestId === state.resumeMatchRequestId) {
+      state.resumeMatchError = error.message || "分析失败，请稍后重试。";
+    }
+  } finally {
+    if (requestId === state.resumeMatchRequestId) {
+      state.resumeMatchLoading = false;
+      renderCurrentResumeMatch();
+    }
+  }
+}
+
+function resetResumeMatchState() {
+  state.resumeMatchLoading = false;
+  state.resumeMatchError = null;
+  state.resumeMatchResult = null;
+  state.resumeMatchKey = "";
+}
+
+function currentResumeMatchKey() {
+  const job = currentJob();
+  const source = state.resume && state.resume.source ? state.resume.source : {};
+  return [
+    job.title,
+    job.company,
+    String(job.description || "").slice(0, 200),
+    source.updatedAt || source.parsedAt || "",
+    source.fileName || ""
+  ].join("|");
 }
 
 function generateGreeting() {
@@ -350,17 +414,35 @@ function bindEvents() {
   });
 
   qs("#detailStar").addEventListener("click", async () => toggleStar(state.selectedJob));
-  qs("#detailAnalyzeBtn").addEventListener("click", () => setStep("analysis"));
+  qs("#detailAnalyzeBtn").addEventListener("click", analyzeCurrentJobIfNeeded);
+  qs("#retryAnalysisBtn").addEventListener("click", () => startDeepAnalysis());
   qs("#copyJdBtn").addEventListener("click", () => {
     copyText(qs("#jdDetailText").textContent.trim());
     flashButton(qs("#copyJdBtn"), "已复制");
   });
 
-  qs("#resumeFile").addEventListener("change", (event) => {
+  qs("#resumeFile").addEventListener("change", async (event) => {
     const file = event.target.files[0];
-    if (file) markResumeUploaded(file.name);
+    if (file) {
+      resetResumeMatchState();
+      await handleResumeFile(state, file, { updateMatchState, setStep });
+      await startResumeMatchAnalysis();
+    }
   });
-  qs("#exampleResumeBtn").addEventListener("click", () => markResumeUploaded("示例简历.pdf"));
+  qs("#exampleResumeBtn").addEventListener("click", async () => {
+    resetResumeMatchState();
+    await useExampleResume(state, { updateMatchState, setStep });
+    await startResumeMatchAnalysis();
+  });
+  qs("#clearResumeBtn").addEventListener("click", async () => {
+    resetResumeMatchState();
+    await clearCurrentResume(state, { updateMatchState, setStep });
+  });
+  qs("#clearResumeEditorBtn").addEventListener("click", async () => {
+    resetResumeMatchState();
+    await clearCurrentResume(state, { updateMatchState, setStep });
+  });
+  qs("#analyzeResumeMatchBtn").addEventListener("click", startResumeMatchAnalysis);
   qs("#toGreetingBtn").addEventListener("click", () => setStep("greeting"));
   qs("#toEditorBtn").addEventListener("click", () => setStep("editor"));
   qs("#goMatchUploadBtn").addEventListener("click", () => setStep("match"));
@@ -370,16 +452,17 @@ function bindEvents() {
     const copied = copyText(qs("#greetingText").textContent.trim());
     qs("#copyStatus").textContent = copied ? "已复制到剪贴板。" : "浏览器限制了复制权限，请手动选中文案复制。";
   });
-  qs("#sortSuggest").addEventListener("change", (event) => {
-    const sorted = [...baseSuggestions].sort((a, b) => {
-      if (event.target.value === "status") return a.title.localeCompare(b.title, "zh-CN");
-      return a.priority === "高优先级" ? -1 : b.priority === "高优先级" ? 1 : 0;
-    });
-    renderSuggestions(sorted);
+  qs("#resumePaper").addEventListener("click", (event) => {
+    if (applyEditorAction(state, event)) resetResumeMatchState();
   });
-  qs("#recheckBtn").addEventListener("click", recheckResume);
-  qs("#resumeText").addEventListener("input", recheckResume);
-  qs("#saveResumeBtn").addEventListener("click", () => flashButton(qs("#saveResumeBtn"), "已保存"));
+  qs("#saveResumeBtn").addEventListener("click", async () => {
+    const saved = await saveResumeFromEditor(state);
+    if (saved) {
+      flashButton(qs("#saveResumeBtn"), "已保存");
+      resetResumeMatchState();
+      await startResumeMatchAnalysis();
+    }
+  });
   qs("#exportPdfBtn").addEventListener("click", () => {
     document.body.classList.add("print-resume");
     window.print();
@@ -392,16 +475,15 @@ function bindEvents() {
     event.preventDefault();
     await saveSettings();
     qs("#apiStatus").className = "api-status ok";
-    qs("#apiStatus").textContent = "设置已保存到本地。";
+    qs("#apiStatus").textContent = "非敏感配置已保存，API Key 已保存到当前浏览器会话。";
   });
 }
 
 async function init() {
   bindEvents();
-  renderMatches();
-  renderSuggestions();
   updateMatchState();
   state.jobs = await getJobs();
+  await restoreResume(state, { updateMatchState, setStep });
   await loadSettings();
   render();
   setStatus(state.jobs.length ? "可以继续提取或导出" : "准备提取当前页面");

@@ -34,3 +34,30 @@ export async function setLocal(data) {
     localStorage.setItem(key, JSON.stringify(value));
   });
 }
+
+export async function getSession(defaults) {
+  const keys = Object.keys(defaults);
+  if (window.chrome && chrome.storage && chrome.storage.session) {
+    return chromeAsync((done) => chrome.storage.session.get(defaults, done));
+  }
+
+  return keys.reduce((data, key) => {
+    try {
+      data[key] = JSON.parse(sessionStorage.getItem(key)) || defaults[key];
+    } catch (_error) {
+      data[key] = defaults[key];
+    }
+    return data;
+  }, {});
+}
+
+export async function setSession(data) {
+  if (window.chrome && chrome.storage && chrome.storage.session) {
+    await chromeAsync((done) => chrome.storage.session.set(data, done));
+    return;
+  }
+
+  Object.entries(data).forEach(([key, value]) => {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  });
+}
