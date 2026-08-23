@@ -1,8 +1,8 @@
 import { escapeHtml, qs, qsa } from "../dom.js";
 import { validateJobForAnalysis } from "./result.js";
 
-export function renderDeepAnalysis(job, intelligence, analysisState) {
-  const result = intelligence.deepAnalysis;
+export function renderDeepAnalysis(job, analysisState) {
+  const result = job && job.deepAnalysis ? job.deepAnalysis : null;
   const isLoading = analysisState.analyzingJob === analysisState.selectedJob;
   const error = analysisState.analysisError && analysisState.analysisError.index === analysisState.selectedJob
     ? analysisState.analysisError.message
@@ -23,7 +23,7 @@ export function renderDeepAnalysis(job, intelligence, analysisState) {
 function renderAnalysisStatus({ isLoading, validation, error, result }) {
   if (isLoading) {
     qs("#analysisStatusTitle").textContent = "正在深度分析";
-    qs("#analysisStatusText").textContent = "AI 正在基于当前 JD 提炼岗位本质、核心要求、隐形要求和理想候选人。";
+    qs("#analysisStatusText").textContent = "正在提炼岗位本质、核心要求、隐形要求和理想候选人。";
     return;
   }
 
@@ -42,7 +42,7 @@ function renderAnalysisStatus({ isLoading, validation, error, result }) {
 
   if (result) {
     qs("#analysisStatusTitle").textContent = "深度分析结果";
-    qs("#analysisStatusText").textContent = result.updatedAt ? `已完成分析：${formatTime(result.updatedAt)}` : "已完成分析。";
+    qs("#analysisStatusText").textContent = result.updatedAt ? `最近分析： ${formatTime(result.updatedAt)}` : "已完成分析。";
     return;
   }
 
@@ -58,10 +58,29 @@ function renderAnalysisSections(result) {
     idealCandidate: []
   };
 
-  qs("#analysisEssence").innerHTML = listHtml(analysis.essence);
-  qs("#analysisAudience").innerHTML = listHtml(analysis.coreRequirements);
+  qs("#analysisEssence").innerHTML = essenceHtml(analysis.essence);
+  qs("#analysisAudience").innerHTML = coreRequirementHtml(analysis.coreRequirements);
   qs("#analysisHidden").innerHTML = hiddenRequirementHtml(analysis.hiddenRequirements);
   qs("#analysisIdeal").innerHTML = listHtml(analysis.idealCandidate);
+}
+
+function essenceHtml(items) {
+  return (items && items.length ? items : ["暂无结果"]).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+}
+
+function coreRequirementHtml(items) {
+  return (items && items.length ? items : ["暂无结果"]).map((item, index) => {
+    const [title, description] = splitCoreRequirement(item);
+    return `
+      <li class="core-requirement">
+        <span>${String(index + 1).padStart(2, "0")}</span>
+        <div>
+          <strong>${escapeHtml(title)}</strong>
+          ${description ? `<p>${escapeHtml(description)}</p>` : ""}
+        </div>
+      </li>
+    `;
+  }).join("");
 }
 
 function listHtml(items) {
@@ -77,10 +96,19 @@ function hiddenRequirementHtml(items) {
     return `
       <li class="hidden-requirement">
         <span>${escapeHtml(conclusion.trim())}</span>
-        <small>${escapeHtml(basis.trim())}</small>
+        <small><strong>推导依据：</strong>${escapeHtml(basis.trim())}</small>
       </li>
     `;
   }).join("");
+}
+
+function splitCoreRequirement(item) {
+  const text = String(item || "").trim();
+  const parts = text.split(/[：:｜|]/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length > 1 && parts[0].length <= 18) return [parts[0], parts.slice(1).join("：")];
+  const sentenceMatch = text.match(/^(.{2,18}?)(?:，|,|。|\s)(.+)$/);
+  if (sentenceMatch) return [sentenceMatch[1].trim(), sentenceMatch[2].trim()];
+  return [text, ""];
 }
 
 function formatTime(value) {

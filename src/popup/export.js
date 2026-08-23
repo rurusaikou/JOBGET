@@ -14,18 +14,53 @@ export async function exportJobs(jobs, button, emptyText) {
 }
 
 function jobRows(jobs) {
-  return dedupeJobs(jobs).map((job) => ({
-    "岗位": job.title || "",
-    "公司": job.company || "",
-    "工作地点": job.location || "",
-    "工作经验": job.experience || "",
-    "学历要求": job.education || "",
-    "薪资": job.salary || "",
-    "JD原文": job.description || "",
-    "发布日期": job.postedDate || "",
-    "来源网站": job.sourceSite || inferSourceSite(job.sourceUrl),
-    "来源链接": job.sourceUrl || ""
-  }));
+  return dedupeJobs(jobs).map((job) => {
+    const analysis = job.deepAnalysis || {};
+    const match = job.resumeMatch && job.resumeMatch.result ? job.resumeMatch.result : {};
+
+    return {
+      "岗位": job.title || "",
+      "公司": job.company || "",
+      "工作地点": job.location || "",
+      "工作经验": job.experience || "",
+      "学历要求": job.education || "",
+      "薪资": job.salary || "",
+      "JD原文": job.description || "",
+      "发布日期": job.postedDate || "",
+      "来源网站": job.sourceSite || inferSourceSite(job.sourceUrl),
+      "来源链接": job.sourceUrl || "",
+      "岗位本质": joinList(analysis.essence),
+      "核心要求": joinList(analysis.coreRequirements),
+      "隐形要求": joinList(analysis.hiddenRequirements),
+      "理想候选人": joinList(analysis.idealCandidate),
+      "深度分析时间": formatExportTime(analysis.updatedAt),
+      "匹配等级": match.level || "",
+      "匹配说明": match.reason || "",
+      "直接匹配": joinObjects(match.directMatches, ["requirement", "experience", "proof"]),
+      "可迁移能力": joinObjects(match.transferableMatches, ["requirement", "experience", "ability", "boundary"]),
+      "关键缺口": joinObjects(match.gaps, ["gap", "impact"]),
+      "简历修改建议": joinObjects(match.revisions, ["summary", "original", "direction", "rewrite"]),
+      "匹配分析时间": formatExportTime(job.resumeMatch && job.resumeMatch.updatedAt)
+    };
+  });
+}
+
+function joinList(items) {
+  return (items || []).filter(Boolean).join("\n");
+}
+
+function joinObjects(items, keys) {
+  return (items || []).map((item, index) => {
+    const text = keys.map((key) => item && item[key]).filter(Boolean).join("｜");
+    return text ? `${index + 1}. ${text}` : "";
+  }).filter(Boolean).join("\n");
+}
+
+function formatExportTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("zh-CN");
 }
 
 async function downloadWorkbook(jobs, filename) {

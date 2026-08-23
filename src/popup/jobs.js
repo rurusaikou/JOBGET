@@ -55,7 +55,8 @@ export function normalizeJobForUi(job) {
     sourceSite: job && job.sourceSite ? job.sourceSite : inferSourceSite(job && job.sourceUrl),
     sourceUrl: job && job.sourceUrl ? job.sourceUrl : "",
     starred: Boolean(job && job.starred),
-    deepAnalysis: normalizeStoredDeepAnalysis(job && job.deepAnalysis)
+    deepAnalysis: normalizeStoredDeepAnalysis(job && job.deepAnalysis),
+    resumeMatch: normalizeStoredResumeMatch(job && job.resumeMatch)
   };
 }
 
@@ -84,4 +85,25 @@ function jobDedupeKey(job) {
   ].filter(Boolean).join("|");
 
   return sourceUrl ? `${sourceUrl}|${identity}` : identity;
+}
+
+function normalizeStoredResumeMatch(match) {
+  if (!match || typeof match !== "object") return null;
+  const result = match.result && typeof match.result === "object" ? match.result : match;
+  return {
+    key: match.key || "",
+    updatedAt: match.updatedAt || "",
+    result: {
+      level: result.level || "",
+      reason: result.reason || "",
+      directMatches: normalizeObjectList(result.directMatches),
+      transferableMatches: normalizeObjectList(result.transferableMatches),
+      gaps: normalizeObjectList(result.gaps),
+      revisions: normalizeObjectList(result.revisions)
+    }
+  };
+}
+
+function normalizeObjectList(value) {
+  return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
 }

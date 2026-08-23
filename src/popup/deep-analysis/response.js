@@ -1,45 +1,9 @@
+import { extractResponseContent } from "../llm-response.js";
 import { normalizeAiAnalysis } from "./result.js";
 
 export function parseAnalysisResponse(payload) {
   const content = extractResponseContent(payload);
   return normalizeAiAnalysis(parseAnalysisContent(content));
-}
-
-function extractResponseContent(payload) {
-  if (!payload || typeof payload !== "object") return "";
-  if (typeof payload.output_text === "string") return payload.output_text;
-
-  // OpenAI-compatible 服务并不总是复用同一个字段；集中兼容可降低供应商切换成本。
-  const choice = payload.choices && payload.choices[0] ? payload.choices[0] : null;
-  const message = choice && choice.message ? choice.message : null;
-  const candidates = [
-    message && message.content,
-    message && message.reasoning_content,
-    choice && choice.text
-  ];
-
-  for (const candidate of candidates) {
-    const text = contentToText(candidate);
-    if (text) return text;
-  }
-
-  if (Array.isArray(payload.output)) {
-    const text = payload.output.map((item) => contentToText(item && item.content)).filter(Boolean).join("\n");
-    if (text) return text;
-  }
-
-  return "";
-}
-
-function contentToText(content) {
-  if (typeof content === "string") return content.trim();
-  if (!Array.isArray(content)) return "";
-
-  return content.map((item) => {
-    if (typeof item === "string") return item;
-    if (!item || typeof item !== "object") return "";
-    return item.text || item.output_text || "";
-  }).filter(Boolean).join("\n").trim();
 }
 
 function parseAnalysisContent(content) {

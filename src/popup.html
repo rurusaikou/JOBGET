@@ -75,7 +75,7 @@
         <nav id="flowTabs" class="flow-tabs" aria-label="岗位流程">
           <button data-step="analysis" class="active" type="button">深度分析</button>
           <button data-step="match" type="button">匹配</button>
-          <button data-step="editor" type="button">简历</button>
+          <button data-step="revision" type="button">修改建议</button>
           <button data-step="greeting" type="button">沟通</button>
         </nav>
 
@@ -116,9 +116,14 @@
             </div>
             <button id="retryAnalysisBtn" class="soft-btn is-hidden" type="button">重新分析</button>
           </article>
-          <article class="card jd-analysis-card analysis-result-card">
-            <h2>岗位本质</h2>
-            <ul id="analysisEssence"></ul>
+          <article class="card jd-analysis-card analysis-essence-card analysis-result-card">
+            <div class="analysis-card-title">
+              <span class="analysis-title-icon">◎</span>
+              <h2>岗位本质</h2>
+            </div>
+            <div class="analysis-essence-body">
+              <ul id="analysisEssence"></ul>
+            </div>
           </article>
           <article class="card jd-analysis-card analysis-result-card">
             <h2>核心要求</h2>
@@ -134,77 +139,60 @@
           </article>
         </div>
 
-        <div id="intelligenceStep" class="step-view">
-          <article class="card jd-detail-card">
-            <h2>JD 详情</h2>
-            <dl>
-              <div>
-                <dt>职位名称</dt>
-                <dd id="intelTitle">-</dd>
-              </div>
-              <div>
-                <dt>公司地点</dt>
-                <dd id="intelCompany">-</dd>
-              </div>
-              <div>
-                <dt>岗位信息</dt>
-                <dd id="intelMeta">-</dd>
-              </div>
-              <div>
-                <dt>薪资</dt>
-                <dd id="intelSalary">-</dd>
-              </div>
-            </dl>
-            <div id="intelJdText" class="jd-copy"></div>
-          </article>
-          <article class="card jd-analysis-card">
-            <h2>深度分析结果</h2>
-            <ul id="intelAnalysis"></ul>
-          </article>
-          <article class="card jd-analysis-card">
-            <h2>简历修改建议</h2>
-            <ul id="intelSuggestions"></ul>
-          </article>
-          <article class="card jd-analysis-card">
-            <h2>打招呼内容</h2>
-            <div id="intelGreeting" class="greeting-text"></div>
-          </article>
-        </div>
-
         <div id="matchStep" class="step-view">
           <article id="matchUploadPrompt" class="upload-card">
-            <h2>简历结构化</h2>
-            <p id="resumeStatus">当前还没有简历。上传 PDF / DOCX 后，系统会在本地提取文本、识别章节并生成 Resume JSON。</p>
+            <h2>简历上传</h2>
+            <p id="resumeStatus">当前还没有简历。上传 PDF / DOCX 后，会在本地提取内容并用于匹配分析。</p>
             <label class="upload-btn">
-              上传 / 替换简历
+              上传简历
               <input id="resumeFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
             </label>
             <div class="upload-actions">
               <button id="exampleResumeBtn" class="soft-btn" type="button">使用示例</button>
-              <button id="clearResumeBtn" class="danger-btn" type="button">清除简历</button>
             </div>
           </article>
           <div id="matchResults" class="match-results is-hidden">
             <article class="score-card">
-              <span>简历与 JD 匹配度</span>
-              <strong id="matchScore">0%</strong>
-              <em id="matchVerdict">等待分析</em>
+              <div class="score-card-head">
+                <span>匹配结论</span>
+                <button id="analyzeResumeMatchBtn" class="soft-btn" type="button">重新分析</button>
+              </div>
+              <div class="score-card-body">
+                <div class="score-conclusion">
+                  <div>
+                    <strong id="matchScore">等待分析</strong>
+                    <span id="matchPercent" class="score-percent">0%</span>
+                  </div>
+                  <em id="matchVerdict">等待分析</em>
+                </div>
+                <div id="matchMetricGrid" class="match-overview">
+                  <div class="match-overview-head">
+                    <strong>匹配概览</strong>
+                  </div>
+                  <div class="match-overview-stats">
+                    <div class="matched"><strong id="matchMatchedCount">0</strong><span>已匹配</span></div>
+                    <div class="partial"><strong id="matchPartialCount">0</strong><span>可迁移</span></div>
+                    <div class="missing"><strong id="matchMissingCount">0</strong><span>关键缺口</span></div>
+                  </div>
+                </div>
+              </div>
               <div class="progress"><span id="matchProgress"></span></div>
+              <div id="matchInsightGrid" class="match-insight-grid">
+                <section>
+                  <strong>优势</strong>
+                  <p id="matchStrengthText">等待分析。</p>
+                </section>
+                <section>
+                  <strong>主要阻碍</strong>
+                  <p id="matchBlockerText">等待分析。</p>
+                </section>
+              </div>
             </article>
-            <div class="metric-grid">
-              <div><strong id="matchMatchedCount">0</strong><span>已匹配</span></div>
-              <div><strong id="matchPartialCount">0</strong><span>待补强</span></div>
-              <div><strong id="matchMissingCount">0</strong><span>暂无证据</span></div>
-            </div>
             <div id="matchList" class="match-list"></div>
-            <article class="card resume-suggestions">
-              <h2>简历修改建议</h2>
-              <div id="suggestList" class="resume-revision-list"></div>
-            </article>
             <div class="match-actions">
-              <button id="analyzeResumeMatchBtn" class="soft-btn" type="button">重新分析</button>
+              <button id="clearResumeBtn" class="danger-btn" type="button">清除简历</button>
               <button id="toGreetingBtn" class="soft-btn" type="button">生成求职开场白</button>
-              <button id="toEditorBtn" class="primary" type="button">进入简历编辑</button>
+              <button id="toRevisionBtn" class="primary" type="button">查看修改建议</button>
             </div>
             <p class="note">匹配会把当前 JD、JD 深度分析结果和简历发送到你配置的模型服务。</p>
           </div>
@@ -216,39 +204,66 @@
             <p>求职开场白会基于 JD 和你的简历生成。请先在“匹配”中上传简历。</p>
             <button id="goMatchUploadBtn" class="primary" type="button">去上传简历</button>
           </article>
-          <article id="greetingResult" class="card is-hidden">
-            <h2>一键生成求职开场白</h2>
-            <p class="greeting-tip">基于当前 JD 和简历亮点生成，可直接复制到招聘平台。</p>
-            <div id="greetingText" class="greeting-text"></div>
-            <div class="match-actions">
-              <button id="generateGreetingBtn" class="soft-btn" type="button">重新生成</button>
-              <button id="copyGreetingBtn" class="primary" type="button">复制开场白</button>
+          <article id="greetingResult" class="card greeting-card is-hidden">
+            <div class="greeting-card-head">
+              <div>
+                <h2>求职开场白</h2>
+                <p class="greeting-tip">基于当前 JD 和简历生成，可直接复制到招聘平台。</p>
+              </div>
             </div>
-            <p id="copyStatus" class="note">可根据投递平台语气再做轻微调整。</p>
+            <div class="greeting-controls">
+              <label>
+                <span>语气</span>
+                <select id="greetingTone">
+                  <option value="natural">自然</option>
+                  <option value="professional">专业</option>
+                  <option value="concise">简洁</option>
+                  <option value="warm">热情</option>
+                </select>
+              </label>
+              <label>
+                <span>字数上限</span>
+                <select id="greetingLength">
+                  <option value="120">约120字</option>
+                  <option value="80">约80字</option>
+                  <option value="160">约160字</option>
+                </select>
+              </label>
+            </div>
+            <div class="greeting-result-head">
+              <strong>生成结果</strong>
+              <span id="greetingCounter">0 / 120 字</span>
+            </div>
+            <div id="greetingText" class="greeting-text"></div>
+            <div class="greeting-actions">
+              <button id="generateGreetingBtn" class="soft-btn" type="button">↻ 重新生成</button>
+              <button id="copyGreetingBtn" class="primary" type="button">▣ 复制</button>
+            </div>
+            <p id="copyStatus" class="greeting-note">💡 提示：可根据不同投递平台和场景调整语气与表达重点，让沟通更自然有效。</p>
           </article>
         </div>
 
-        <div id="editorStep" class="step-view">
-          <article id="editorPrompt" class="upload-card">
-            <h2>先上传简历</h2>
-            <p>简历编辑需要基于已上传的简历内容生成。请先在“匹配”中上传简历，再回来编辑和导出 PDF。</p>
-            <button id="goEditorUploadBtn" class="primary" type="button">去上传简历</button>
+        <div id="revisionStep" class="step-view">
+          <article id="revisionPrompt" class="upload-card">
+            <h2>简历修改建议</h2>
+            <p id="revisionPromptText">上传简历并完成匹配分析后，这里会展示针对当前岗位的简历修改建议。</p>
+            <button id="goRevisionMatchBtn" class="primary" type="button">去匹配分析</button>
           </article>
-          <div id="editorLayout" class="editor-layout is-hidden">
-            <section class="resume-paper" id="resumePaper" tabindex="-1">
-              <h2>简历编辑</h2>
-              <p class="resume-empty">上传 PDF / DOCX 后会在这里生成可编辑的结构化简历。</p>
-            </section>
-            <aside class="resume-side">
-              <h2>结构化摘要</h2>
-              <dl id="resumeSummary"></dl>
-            </aside>
-          </div>
-          <div id="editorActions" class="editor-actions is-hidden">
-            <button id="saveResumeBtn" class="soft-btn" type="button">保存简历</button>
-            <button id="clearResumeEditorBtn" class="danger-btn" type="button">清除简历</button>
-            <button id="exportPdfBtn" class="primary" type="button">导出 PDF</button>
-          </div>
+          <article id="resumeSuggestionsCard" class="card resume-suggestions is-hidden">
+            <div class="revision-card-head">
+              <span class="revision-head-icon">≡</span>
+              <div>
+                <h2>简历修改建议</h2>
+                <p>基于当前 JD 分析，建议从以下方向优化，提升与岗位的匹配度。</p>
+              </div>
+            </div>
+            <div class="revision-priority">
+              <span>☼</span>
+              <strong id="revisionPriorityText">优先补强：产品落地表达、AI 能力迁移、求职动机</strong>
+            </div>
+            <div id="suggestList" class="resume-revision-list"></div>
+            <p class="revision-tip">ⓘ 小贴士：建议优先优化 01，再优化 02，最后完善 03，形成完整的简历故事线。</p>
+          </article>
         </div>
       </section>
 

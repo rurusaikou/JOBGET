@@ -2,10 +2,8 @@ import { qs } from "../dom.js";
 import { structureResumeText } from "./extractor.js";
 import { parseResumeFile } from "./parser.js";
 import { clearResume, getResume, setResume } from "./storage.js";
-import { applyResumeEditorAction, collectResumeFromEditor, renderResumeEditor } from "./view.js";
 
-const EMPTY_RESUME_MESSAGE = "当前还没有简历。上传 PDF / DOCX 后，系统会在本地提取文本、识别章节并生成 Resume JSON。";
-const EMPTY_EDITOR_HTML = '<h2>简历编辑</h2><p class="resume-empty">上传 PDF / DOCX 后会在这里生成可编辑的结构化简历。</p>';
+const EMPTY_RESUME_MESSAGE = "当前还没有简历。上传 PDF / DOCX 后，会在本地提取内容并用于匹配分析。";
 
 export async function handleResumeFile(state, file, callbacks) {
   const input = qs("#resumeFile");
@@ -48,8 +46,10 @@ export async function restoreResume(state, callbacks) {
   }
 
   state.resumeUploaded = true;
-  renderResumeEditor(state.resume);
-  qs("#resumeStatus").textContent = `已解析：${state.resume.source && state.resume.source.fileName ? state.resume.source.fileName : "本地简历"}。可继续替换、编辑或导出。`;
+  qs("#resumeStatus").textContent = parsedResumeStatus(
+    state.resume.source && state.resume.source.fileName ? state.resume.source.fileName : "本地简历",
+    state.resume
+  );
   callbacks.updateMatchState();
 }
 
@@ -61,40 +61,21 @@ export async function clearCurrentResume(state, callbacks) {
   callbacks.setStep("match");
 }
 
-export async function saveResumeFromEditor(state) {
-  if (!state.resume) return null;
-
-  state.resume = await setResume(collectResumeFromEditor(state.resume));
-  renderResumeEditor(state.resume);
-  return state.resume;
-}
-
-export function applyEditorAction(state, event) {
-  const button = event.target.closest("[data-resume-action]");
-  if (!button || !state.resume) return false;
-
-  state.resume = applyResumeEditorAction(
-    state.resume,
-    button.dataset.resumeAction,
-    button.dataset.section,
-    Number(button.dataset.index)
-  );
-  renderResumeEditor(state.resume);
-  return true;
-}
-
 function markResumeReady(state, label, callbacks) {
   state.resumeUploaded = true;
-  renderResumeEditor(state.resume);
-  qs("#resumeStatus").textContent = `已解析：${label}。可继续替换、编辑或导出。`;
+  qs("#resumeStatus").textContent = parsedResumeStatus(label, state.resume);
   callbacks.updateMatchState();
   setTimeout(() => callbacks.setStep("match"), 300);
 }
 
+function parsedResumeStatus(label, resume) {
+  const length = String(resume && resume.rawText || "").length;
+  const suffix = length ? `共提取 ${length} 字，` : "";
+  return `已解析：${label}。${suffix}可继续用于匹配分析。`;
+}
+
 function renderEmptyResume() {
   qs("#resumeStatus").textContent = EMPTY_RESUME_MESSAGE;
-  qs("#resumePaper").innerHTML = EMPTY_EDITOR_HTML;
-  qs("#resumeSummary").innerHTML = "";
 }
 
 function exampleResumeText() {
