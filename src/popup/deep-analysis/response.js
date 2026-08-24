@@ -1,4 +1,4 @@
-import { extractResponseContent } from "../llm-response.js";
+import { extractResponseContent } from "../api/response.js";
 import { normalizeAiAnalysis } from "./result.js";
 
 export function parseAnalysisResponse(payload) {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "JOBGET",
   "description": "Extract job descriptions, collect favorites, and export recruiting intelligence to Excel.",
-  "version": "0.4.0",
+  "version": "1.1.0",
   "minimum_chrome_version": "114",
   "action": {
     "default_title": "JOBGET"

@@ -10,7 +10,7 @@ import { appendUniqueJob, getJobs, normalizeJobForUi, setJobs } from "./popup/jo
 import { clearCurrentResume, handleResumeFile, restoreResume, useExampleResume } from "./popup/resume/workflow.js";
 import { analyzeResumeMatchWithAi } from "./popup/resume-match/client.js";
 import { renderResumeMatchView } from "./popup/resume-match/view.js";
-import { applyProviderPreset, getSettings, loadSettings, saveSettings, testApiKey } from "./popup/settings.js";
+import { applyProviderPreset, getSettings, loadSettings, saveSettings, testApiKey } from "./popup/api/settings.js";
 
 const state = {
   // 岗位池与页面导航状态

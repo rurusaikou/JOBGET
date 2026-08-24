@@ -274,7 +274,7 @@
         <div class="view-title">
           <div>
             <h1>API 设置</h1>
-            <p>配置 OpenAI 或兼容 OpenAI 协议的服务</p>
+            <p>配置支持 Responses API 的模型服务</p>
           </div>
         </div>
         <form id="apiForm" class="settings-form">
@@ -282,12 +282,8 @@
             <span>服务商</span>
             <select id="apiProvider">
               <option value="openai">OpenAI</option>
-              <option value="azure">Azure OpenAI</option>
               <option value="deepseek">DeepSeek</option>
-              <option value="zhipu">智谱 GLM</option>
-              <option value="minimax">MiniMAX</option>
-              <option value="qwen">通义千问</option>
-              <option value="compatible">其他兼容服务</option>
+              <option value="custom">自定义 Responses API</option>
             </select>
           </label>
           <label>

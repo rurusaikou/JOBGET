@@ -1,84 +1,57 @@
+export const GREETING_RESPONSE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["greeting"],
+  properties: {
+    greeting: {
+      type: "string",
+      description: "招聘平台首次沟通开场白"
+    }
+  }
+};
+
 export function greetingMessages({ job, jdAnalysisText, resumeText, matchText, toneLabel, maxChars }) {
   const prompt = `
-## 角色
+你是一位资深招聘专家，请为候选人本人生成招聘平台首次沟通开场白。
 
-你是一位资深招聘专家，需要基于目标 JD、JD 分析结果、候选人简历和简历与 JD 的匹配亮点，为候选人本人生成一段招聘平台首次沟通的开场白。
-
-## 输入
-
+输入：
 公司：${job.company || "未识别"}
-
 岗位：${job.title || "未识别"}
-
-JD：${job.description || "未识别"}
-
-JD分析结果：${jdAnalysisText || "未分析"}
-
-候选人简历：${resumeText || "未识别"}
-
-简历与 JD 匹配亮点：${matchText || "未识别"}
-
+JD摘要：${compactText(job.description || "未识别", 500)}
+JD分析摘要：${jdAnalysisText || "未分析"}
+可使用的简历证据：${resumeText || "未识别"}
+匹配亮点与边界：${matchText || "未识别"}
 语气：${toneLabel}
-
 字数上限：${maxChars} 字
 
-## 任务
+任务：不要重新分析 JD 或简历。只基于“匹配亮点与边界”中最有利的一条真实证据，生成一段开场白。
 
-生成一段针对该岗位定制的开场白，用于招聘平台首次沟通。
+要求：
+- 使用第一人称，自然说明申请岗位
+- 使用 1 个真实经历作为证据，不按简历顺序罗列
+- 缺少直接经验时，只提炼真实可迁移能力，不虚构、不拔高
+- 不写“我的核心优势是”“高度匹配”“完整闭环”“沉淀能力”“技术与业务的翻译者”
+- 不提“根据匹配分析”“根据 JD 分析”等工具痕迹
+- 语言符合“${toneLabel}”，自然、克制、具体，结尾简单表达沟通意愿
+- 不超过 ${maxChars} 个汉字
+- 只生成开场白，不解释选择依据
 
-生成前先判断：
-
-1. 岗位最重要的 1-2 项要求
-2. 候选人与之最匹配的一项能力或做事方式
-3. 最能证明这一点的 1-2 段真实经历
-
-围绕这一条匹配主线组织内容，经历只作为证据，不按简历顺序罗列。
-
-## 写作要求
-
-- 使用第一人称，以候选人本人身份表达
-- 开头自然说明申请岗位
-- 通过具体经历体现能力，不直接写“我的核心优势是”“我最有辨识度的是”等自我评价
-- 明确体现经历与该岗位核心要求的关系，但不要机械复述 JD
-- 结尾简单表达进一步沟通意愿
-- 语言自然、克制、具体
-- 语气必须符合“${toneLabel}”
-
-## 约束
-
-- 不虚构、不拔高；缺乏直接经验时，只能提炼真实的可迁移能力
-- 不要泛泛说“我很优秀”“学习能力强”“高度匹配”
-- 不要提及“根据匹配分析”“根据 JD 分析”等工具痕迹
-- 不要写成简历摘要
-- 避免“完整闭环、沉淀能力、技术与业务的翻译者”等招聘或 AI 文案式表达
-- 不要超过 ${maxChars} 个汉字
-
-## 自检
-
-生成后确认：
-
-1. 是否能看出“为什么这个人适合这个岗位”
-2. 是否围绕一个核心匹配点，而不是经历罗列
-3. 是否像求职者本人说的话
-4. 如果更换公司和岗位后仍能原样发送，则重新生成
-
-## 输出格式
-
-只输出严格 JSON，不要 Markdown，不要解释说明，不要思考过程。
-
-{
-  "greeting": "一段求职开场白"
-}
-`;
+输出必须严格符合 schema，不要 Markdown、解释、推理过程或 JSON 外文字。
+`.trim();
 
   return [
     {
       role: "system",
-      content: "你只输出可解析 JSON，不输出解释、推理过程或 Markdown。"
+      content: "你只输出符合既定 schema 的可解析 JSON，不输出解释、推理过程或 Markdown。"
     },
     {
       role: "user",
-      content: prompt.trim()
+      content: prompt
     }
   ];
+}
+
+function compactText(text, maxLength) {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
 }

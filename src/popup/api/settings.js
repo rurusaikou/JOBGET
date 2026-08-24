@@ -1,9 +1,9 @@
-import { API_KEY_SESSION_KEY, SETTINGS_KEY } from "./constants.js";
-import { apiProviderPresets } from "./data/api-providers.js";
-import { qs } from "./dom.js";
-import { logApiError, logApiRequest, logApiResponse } from "./api-debug.js";
-import { chatCompletionsUrl } from "./llm.js";
-import { getLocal, getSession, setLocal, setSession } from "./storage.js";
+import { API_KEY_SESSION_KEY, SETTINGS_KEY } from "../constants.js";
+import { qs } from "../dom.js";
+import { getLocal, getSession, setLocal, setSession } from "../storage.js";
+import { logApiError, logApiRequest, logApiResponse } from "./debug.js";
+import { responsesUrl } from "./client.js";
+import { apiProviderPresets } from "./providers.js";
 
 export const defaultSettings = {
   provider: "openai",
@@ -15,7 +15,7 @@ export async function loadSettings() {
   const data = await getLocal({ [SETTINGS_KEY]: defaultSettings });
   const settings = await migratePlaintextApiKey(data[SETTINGS_KEY] || defaultSettings);
   const session = await getSession({ [API_KEY_SESSION_KEY]: "" });
-  qs("#apiProvider").value = settings.provider || "openai";
+  qs("#apiProvider").value = normalizeProvider(settings.provider);
   qs("#baseUrl").value = settings.baseUrl || apiProviderPresets.openai.baseUrl;
   qs("#modelName").value = settings.model || apiProviderPresets.openai.model;
   qs("#apiKey").value = session[API_KEY_SESSION_KEY] || "";
@@ -28,6 +28,7 @@ export async function getSettings() {
   return {
     ...defaultSettings,
     ...settings,
+    provider: normalizeProvider(settings.provider),
     apiKey: session[API_KEY_SESSION_KEY] || ""
   };
 }
@@ -35,7 +36,7 @@ export async function getSettings() {
 export async function saveSettings() {
   await setLocal({
     [SETTINGS_KEY]: {
-      provider: qs("#apiProvider").value,
+      provider: normalizeProvider(qs("#apiProvider").value),
       baseUrl: qs("#baseUrl").value.trim(),
       model: qs("#modelName").value.trim()
     }
@@ -44,9 +45,13 @@ export async function saveSettings() {
 }
 
 export function applyProviderPreset(provider) {
-  const preset = apiProviderPresets[provider];
+  const preset = apiProviderPresets[normalizeProvider(provider)];
   qs("#baseUrl").value = preset.baseUrl;
   qs("#modelName").value = preset.model;
+}
+
+function normalizeProvider(provider) {
+  return apiProviderPresets[provider] ? provider : "custom";
 }
 
 export async function testApiKey() {
@@ -76,7 +81,7 @@ export async function testApiKey() {
 
   button.disabled = true;
   try {
-    await testChatCompletionsConnection({ baseUrl, key, model });
+    await testResponsesConnection({ baseUrl, key, model });
     status.classList.add("ok");
     status.textContent = "连接测试通过：API Key、Base URL 和模型可用。";
   } catch (error) {
@@ -87,15 +92,29 @@ export async function testApiKey() {
   }
 }
 
-async function testChatCompletionsConnection({ baseUrl, key, model }) {
-  const url = chatCompletionsUrl(baseUrl);
+async function testResponsesConnection({ baseUrl, key, model }) {
+  const url = responsesUrl(baseUrl);
+  // 测试不只 ping 模型，也验证当前服务是否支持 Responses API 的 json_schema 输出。
   const body = {
     model,
     temperature: 0,
-    max_tokens: 1,
-    messages: [
-      { role: "user", content: "ping" }
-    ]
+    max_output_tokens: 40,
+    input: "返回一个表示连接成功的 JSON 对象。",
+    text: {
+      format: {
+        type: "json_schema",
+        name: "settings_connection_test",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["ok"],
+          properties: {
+            ok: { type: "boolean" }
+          }
+        }
+      }
+    }
   };
   logApiRequest("settings-test", { url, body });
 
@@ -143,7 +162,7 @@ function parseJsonText(text) {
 async function migratePlaintextApiKey(settings) {
   if (!settings || !settings.apiKey) return withoutApiKey(settings || {});
 
-  // 旧版本曾把 API Key 写入 chrome.storage.local；加载设置时迁移到 session 并覆盖清理。
+  // 旧版本曾把 API Key 写入 chrome.storage.local；加载设置时迁移到 session 并覆盖清理长期明文。
   await setSession({ [API_KEY_SESSION_KEY]: settings.apiKey });
   const migrated = withoutApiKey(settings);
   await setLocal({ [SETTINGS_KEY]: migrated });
@@ -152,5 +171,9 @@ async function migratePlaintextApiKey(settings) {
 
 function withoutApiKey(settings) {
   const { apiKey: _apiKey, ...publicSettings } = settings || {};
-  return { ...defaultSettings, ...publicSettings };
+  return {
+    ...defaultSettings,
+    ...publicSettings,
+    provider: normalizeProvider(publicSettings.provider)
+  };
 }

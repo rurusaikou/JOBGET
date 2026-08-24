@@ -1,33 +1,28 @@
-import { logApiError } from "../api-debug.js";
+import { logApiError } from "../api/debug.js";
 import { jdAnalysisToText } from "../deep-analysis/prompt-text.js";
-import { postChatCompletions, supportsJsonResponseFormat, validateModelSettings } from "../llm.js";
-import { extractResponseContent } from "../llm-response.js";
-import { greetingMessages } from "../prompts/greeting.js";
-import { resumeToPromptText } from "../resume/prompt.js";
+import { attachJsonSchemaFormat, postResponses, validateModelSettings } from "../api/client.js";
+import { extractResponseContent } from "../api/response.js";
+import { GREETING_RESPONSE_SCHEMA, greetingMessages } from "../prompts/greeting.js";
 import { parseGreetingResponse } from "./response.js";
 
 export async function generateGreetingWithAi({ job, resume, matchResult, tone, maxChars, settings }) {
   validateGreetingInput(job, resume, matchResult, settings);
 
-  const requestBody = {
+  const requestBody = attachJsonSchemaFormat({
     model: settings.model.trim(),
     temperature: 0.45,
-    max_tokens: Math.max(220, Number(maxChars) * 3),
+    max_tokens: Math.max(2500, Number(maxChars) * 12),
     messages: greetingMessages({
       job,
-      jdAnalysisText: jdAnalysisToText(job.deepAnalysis),
-      resumeText: resumeToPromptText(resume),
+      jdAnalysisText: compactText(jdAnalysisToText(job.deepAnalysis), 500),
+      resumeText: resumeEvidenceToText(resume, matchResult),
       matchText: matchResultToText(matchResult),
       toneLabel: toneLabel(tone),
       maxChars
     })
-  };
+  }, GREETING_RESPONSE_SCHEMA, "job_application_greeting");
 
-  if (supportsJsonResponseFormat(settings)) {
-    requestBody.response_format = { type: "json_object" };
-  }
-
-  const payload = await postChatCompletions({
+  const payload = await postResponses({
     label: "greeting",
     settings,
     body: requestBody,
@@ -66,16 +61,35 @@ function matchResultToText(matchResult) {
     item.experience,
     item.ability
   ]);
-  appendMatches(lines, "关键缺口", matchResult.gaps, (item) => [
+  appendMatches(lines, "避免夸大的缺口", matchResult.gaps, (item) => [
     item.gap,
     item.impact
-  ]);
-  return lines.join("\n");
+  ], 2);
+  return compactText(lines.join("\n"), 900);
 }
 
-function appendMatches(lines, title, items, renderParts) {
-  const rows = (items || []).slice(0, 3).map((item) => renderParts(item).filter(Boolean).join("｜")).filter(Boolean);
+function resumeEvidenceToText(resume, matchResult) {
+  const basic = resume && resume.basicInfo ? resume.basicInfo : {};
+  const lines = [];
+  if (basic.name) lines.push(`姓名：${basic.name}`);
+  appendMatches(lines, "可使用的简历证据", [
+    ...(matchResult.directMatches || []),
+    ...(matchResult.transferableMatches || [])
+  ], (item) => [
+    item.experience,
+    item.proof || item.ability
+  ], 4);
+  return compactText(lines.join("\n"), 700);
+}
+
+function appendMatches(lines, title, items, renderParts, limit = 3) {
+  const rows = (items || []).slice(0, limit).map((item) => renderParts(item).filter(Boolean).join("｜")).filter(Boolean);
   if (rows.length) lines.push(`${title}：`, ...rows.map((row) => `- ${row}`));
+}
+
+function compactText(text, maxLength) {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
 }
 
 function toneLabel(tone) {

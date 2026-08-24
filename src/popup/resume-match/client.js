@@ -1,30 +1,26 @@
-import { logApiError } from "../api-debug.js";
+import { logApiError } from "../api/debug.js";
 import { jdAnalysisToText } from "../deep-analysis/prompt-text.js";
-import { postChatCompletions, supportsJsonResponseFormat, validateModelSettings } from "../llm.js";
-import { extractResponseContent } from "../llm-response.js";
-import { resumeMatchMessages } from "../prompts/resume-match.js";
+import { attachJsonSchemaFormat, postResponses, validateModelSettings } from "../api/client.js";
+import { extractResponseContent } from "../api/response.js";
+import { RESUME_MATCH_RESPONSE_SCHEMA, resumeMatchMessages } from "../prompts/resume-match.js";
 import { resumeToPromptText } from "../resume/prompt.js";
 import { parseResumeMatchResponse } from "./response.js";
 
 export async function analyzeResumeMatchWithAi({ job, resume, settings }) {
   validateResumeMatchInput(job, resume, settings);
 
-  const requestBody = {
+  const requestBody = attachJsonSchemaFormat({
     model: settings.model.trim(),
     temperature: 0.2,
-    max_tokens: 2600,
+    max_tokens: 7000,
     messages: resumeMatchMessages({
       job,
       resumeText: resumeToPromptText(resume),
       jdAnalysisText: jdAnalysisToText(job.deepAnalysis)
     })
-  };
+  }, RESUME_MATCH_RESPONSE_SCHEMA, "resume_match_analysis");
 
-  if (supportsJsonResponseFormat(settings)) {
-    requestBody.response_format = { type: "json_object" };
-  }
-
-  const payload = await postChatCompletions({
+  const payload = await postResponses({
     label: "resume-match",
     settings,
     body: requestBody,
