@@ -96,7 +96,7 @@ function hiddenRequirementHtml(items) {
     return `
       <li class="hidden-requirement">
         <span>${escapeHtml(conclusion.trim())}</span>
-        <small><strong>推导依据：</strong>${escapeHtml(basis.trim())}</small>
+        <small><strong>依据：</strong>${escapeHtml(basis.trim())}</small>
       </li>
     `;
   }).join("");

@@ -2,6 +2,7 @@ import { logApiError } from "../api/debug.js";
 import { jdAnalysisToText } from "../deep-analysis/prompt-text.js";
 import { attachJsonSchemaFormat, postResponses, validateModelSettings } from "../api/client.js";
 import { extractResponseContent } from "../api/response.js";
+import { compactText, greetingOutputTokens, MODEL_TOKEN_LIMITS } from "../api/token-limits.js";
 import { GREETING_RESPONSE_SCHEMA, greetingMessages } from "../prompts/greeting.js";
 import { parseGreetingResponse } from "./response.js";
 
@@ -11,10 +12,10 @@ export async function generateGreetingWithAi({ job, resume, matchResult, tone, m
   const requestBody = attachJsonSchemaFormat({
     model: settings.model.trim(),
     temperature: 0.45,
-    max_tokens: Math.max(2500, Number(maxChars) * 12),
+    max_tokens: greetingOutputTokens(maxChars),
     messages: greetingMessages({
-      job,
-      jdAnalysisText: compactText(jdAnalysisToText(job.deepAnalysis), 500),
+      job: jobForGreetingPrompt(job),
+      jdAnalysisText: compactText(jdAnalysisToText(job.deepAnalysis), MODEL_TOKEN_LIMITS.greeting.inputChars.jdAnalysis),
       resumeText: resumeEvidenceToText(resume, matchResult),
       matchText: matchResultToText(matchResult),
       toneLabel: toneLabel(tone),
@@ -65,7 +66,7 @@ function matchResultToText(matchResult) {
     item.gap,
     item.impact
   ], 2);
-  return compactText(lines.join("\n"), 900);
+  return compactText(lines.join("\n"), MODEL_TOKEN_LIMITS.greeting.inputChars.matchSummary);
 }
 
 function resumeEvidenceToText(resume, matchResult) {
@@ -79,17 +80,12 @@ function resumeEvidenceToText(resume, matchResult) {
     item.experience,
     item.proof || item.ability
   ], 4);
-  return compactText(lines.join("\n"), 700);
+  return compactText(lines.join("\n"), MODEL_TOKEN_LIMITS.greeting.inputChars.resumeEvidence);
 }
 
 function appendMatches(lines, title, items, renderParts, limit = 3) {
   const rows = (items || []).slice(0, limit).map((item) => renderParts(item).filter(Boolean).join("｜")).filter(Boolean);
   if (rows.length) lines.push(`${title}：`, ...rows.map((row) => `- ${row}`));
-}
-
-function compactText(text, maxLength) {
-  const normalized = String(text || "").replace(/\s+/g, " ").trim();
-  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
 }
 
 function toneLabel(tone) {
@@ -100,4 +96,11 @@ function toneLabel(tone) {
     warm: "热情"
   };
   return labels[tone] || labels.natural;
+}
+
+function jobForGreetingPrompt(job) {
+  return {
+    ...job,
+    description: compactText(job.description, MODEL_TOKEN_LIMITS.greeting.inputChars.jobDescription)
+  };
 }

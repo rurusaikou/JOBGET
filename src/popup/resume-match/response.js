@@ -2,7 +2,7 @@ import { extractResponseContent } from "../api/response.js";
 
 const ALLOWED_LEVELS = ["中高匹配", "中低匹配", "高匹配", "中匹配", "低匹配"];
 const FORMAT_ERROR = "分析失败：模型返回格式异常。请点击“重新分析”再次尝试。";
-const REASONING_LEAK_ERROR = "分析失败：模型返回了推理过程而不是 JSON。请更换非推理模型，或使用支持 JSON 输出的模型后重试。";
+const REASONING_LEAK_ERROR = "分析失败：模型返回了推理过程而不是 JSON。请提高输出上限，或使用支持结构化 JSON 输出的模型后重试。";
 
 export function parseResumeMatchResponse(payload) {
   const content = extractResponseContent(payload);
@@ -63,9 +63,15 @@ function parseJsonContent(content) {
   try {
     return normalizeParsedJson(JSON.parse(trimmed));
   } catch (_error) {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("not json");
-    return normalizeParsedJson(JSON.parse(match[0]));
+    const parsed = extractJsonObjects(trimmed).map((text) => {
+      try {
+        return normalizeParsedJson(JSON.parse(text));
+      } catch (_innerError) {
+        return null;
+      }
+    }).filter(Boolean);
+    if (!parsed.length) throw new Error("not json");
+    return parsed.find(looksLikeResumeMatchObject) || parsed[parsed.length - 1];
   }
 }
 
@@ -79,6 +85,69 @@ function unwrapResultObject(value) {
   // 部分兼容接口会额外包一层 result/data/analysis，这里只剥离明确的对象包装。
   const wrapped = firstObject(value.result, value.data, value.analysis, value["分析结果"], value["匹配分析"]);
   return Object.keys(wrapped).length ? wrapped : value;
+}
+
+function extractJsonObjects(text) {
+  const objects = [];
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === "\"" && !escaped) inString = false;
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      escaped = false;
+      continue;
+    }
+
+    if (char === "{") {
+      if (depth === 0) start = index;
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        objects.push(text.slice(start, index + 1));
+        start = -1;
+      }
+    }
+  }
+
+  return objects;
+}
+
+function looksLikeResumeMatchObject(value) {
+  const data = unwrapResultObject(value);
+  return Boolean(data && typeof data === "object" && (
+    data.overall
+    || data["总体匹配"]
+    || data.directMatches
+    || data["直接匹配"]
+    || data.transferableMatches
+    || data["可迁移能力"]
+    || data.gaps
+    || data["关键缺口"]
+    || data.revisions
+    || data["简历修改建议"]
+  ));
 }
 
 function normalizeObjectList(value) {

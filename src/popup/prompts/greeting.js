@@ -17,7 +17,7 @@ export function greetingMessages({ job, jdAnalysisText, resumeText, matchText, t
 输入：
 公司：${job.company || "未识别"}
 岗位：${job.title || "未识别"}
-JD摘要：${compactText(job.description || "未识别", 500)}
+JD摘要：${job.description || "未识别"}
 JD分析摘要：${jdAnalysisText || "未分析"}
 可使用的简历证据：${resumeText || "未识别"}
 匹配亮点与边界：${matchText || "未识别"}
@@ -49,9 +49,4 @@ JD分析摘要：${jdAnalysisText || "未分析"}
       content: prompt
     }
   ];
-}
-
-function compactText(text, maxLength) {
-  const normalized = String(text || "").replace(/\s+/g, " ").trim();
-  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
 }

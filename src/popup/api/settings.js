@@ -4,6 +4,7 @@ import { getLocal, getSession, setLocal, setSession } from "../storage.js";
 import { logApiError, logApiRequest, logApiResponse } from "./debug.js";
 import { responsesUrl } from "./client.js";
 import { apiProviderPresets } from "./providers.js";
+import { MODEL_TOKEN_LIMITS } from "./token-limits.js";
 
 export const defaultSettings = {
   provider: "openai",
@@ -98,7 +99,7 @@ async function testResponsesConnection({ baseUrl, key, model }) {
   const body = {
     model,
     temperature: 0,
-    max_output_tokens: 40,
+    max_output_tokens: MODEL_TOKEN_LIMITS.settingsTest.outputTokens,
     input: "返回一个表示连接成功的 JSON 对象。",
     text: {
       format: {

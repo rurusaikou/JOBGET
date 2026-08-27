@@ -1,7 +1,7 @@
 import { extractResponseContent } from "../api/response.js";
 
 const FORMAT_ERROR = "生成失败：模型返回格式异常。请点击“重新生成”再次尝试。";
-const REASONING_LEAK_ERROR = "生成失败：模型返回了推理过程而不是开场白。请更换非推理模型，或重新生成。";
+const REASONING_LEAK_ERROR = "生成失败：模型返回了推理过程而不是开场白。请降低推理强度，或重新生成。";
 
 export function parseGreetingResponse(payload, maxChars) {
   const apiError = extractApiErrorMessage(payload);

@@ -7,10 +7,10 @@ export function validateModelSettings(settings) {
 }
 
 export async function postResponses({ label, settings, body, errorPrefix }) {
-  const request = buildResponsesRequest(settings, body);
+  let request = buildResponsesRequest(settings, body);
   logApiRequest(label, request);
 
-  const response = await fetch(request.url, {
+  let response = await fetch(request.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -20,15 +20,40 @@ export async function postResponses({ label, settings, body, errorPrefix }) {
   });
 
   if (!response.ok) {
-    const message = await response.text().catch(() => "");
+    let message = await response.text().catch(() => "");
+    if (request.body.reasoning && shouldRetryWithoutReasoning(response.status, message)) {
+      request = { ...request, body: withoutReasoning(request.body) };
+      logApiRequest(`${label}-without-reasoning`, request);
+      response = await fetch(request.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${settings.apiKey.trim()}`
+        },
+        body: JSON.stringify(request.body)
+      });
+      if (response.ok) {
+        const payload = await response.json();
+        logApiResponse(`${label}-without-reasoning`, payload);
+        return handleResponsesPayload(payload, errorPrefix);
+      }
+      message = await response.text().catch(() => "");
+    }
     logApiError(label, { status: response.status, body: message });
     throw new Error(message ? `${errorPrefix}：${message.slice(0, 120)}` : `${errorPrefix}：API 调用失败。`);
   }
 
   const payload = await response.json();
   logApiResponse(label, payload);
+  return handleResponsesPayload(payload, errorPrefix);
+}
+
+function handleResponsesPayload(payload, errorPrefix) {
   if (payload && payload.status === "incomplete") {
     const reason = payload.incomplete_details && payload.incomplete_details.reason;
+    if (reason === "max_output_tokens" && hasReasoningOnlyOutput(payload)) {
+      throw new Error(`${errorPrefix}：输出上限不足，模型推理尚未生成最终 JSON。请提高输出上限或缩短输入后重试。`);
+    }
     throw new Error(reason === "max_output_tokens"
       ? `${errorPrefix}：模型输出被截断，请缩短输入或稍后重试。`
       : `${errorPrefix}：模型返回未完成。`);
@@ -70,6 +95,10 @@ function normalizeResponsesBody(body) {
     };
   }
 
+  if (body.reasoning_effort) {
+    nextBody.reasoning = { effort: body.reasoning_effort };
+  }
+
   return nextBody;
 }
 
@@ -85,4 +114,20 @@ export function attachJsonSchemaFormat(body, schema, name) {
   // 先挂内部字段，避免业务层知道 text.format 的具体 API 形状。
   body.json_schema_format = { name, schema };
   return body;
+}
+
+function hasReasoningOnlyOutput(payload) {
+  const output = Array.isArray(payload.output) ? payload.output : [];
+  const hasReasoning = output.some((item) => item && item.type === "reasoning");
+  const hasMessage = output.some((item) => item && item.type === "message");
+  return hasReasoning && !hasMessage;
+}
+
+function shouldRetryWithoutReasoning(status, message) {
+  return (status === 400 || status === 422) && /reasoning|effort|unsupported|unknown|invalid|extra/i.test(String(message || ""));
+}
+
+function withoutReasoning(body) {
+  const { reasoning: _reasoning, ...rest } = body;
+  return rest;
 }

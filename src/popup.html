@@ -117,8 +117,8 @@
             <button id="retryAnalysisBtn" class="soft-btn is-hidden" type="button">重新分析</button>
           </article>
           <article class="card jd-analysis-card analysis-essence-card analysis-result-card">
-            <div class="analysis-card-title">
-              <span class="analysis-title-icon">◎</span>
+            <div class="analysis-section-title">
+              <span class="analysis-title-icon target">◎</span>
               <h2>岗位本质</h2>
             </div>
             <div class="analysis-essence-body">
@@ -126,17 +126,27 @@
             </div>
           </article>
           <article class="card jd-analysis-card analysis-result-card">
-            <h2>核心要求</h2>
+            <div class="analysis-section-title">
+              <span class="analysis-title-icon diamond">◇</span>
+              <h2>核心要求</h2>
+            </div>
             <ul id="analysisAudience"></ul>
           </article>
           <article class="card jd-analysis-card analysis-result-card">
-            <h2>隐形要求</h2>
+            <div class="analysis-section-title">
+              <span class="analysis-title-icon eye">●</span>
+              <h2>隐形要求</h2>
+            </div>
             <ul id="analysisHidden"></ul>
           </article>
           <article class="card jd-analysis-card analysis-result-card">
-            <h2>理想候选人</h2>
+            <div class="analysis-section-title">
+              <span class="analysis-title-icon person">♙</span>
+              <h2>理想候选人画像</h2>
+            </div>
             <ul id="analysisIdeal"></ul>
           </article>
+          <p class="analysis-note analysis-result-card">小贴士：以上信息基于JD分析得出，建议结合面试进一步验证与补充。</p>
         </div>
 
         <div id="matchStep" class="step-view">
@@ -177,16 +187,6 @@
                 </div>
               </div>
               <div class="progress"><span id="matchProgress"></span></div>
-              <div id="matchInsightGrid" class="match-insight-grid">
-                <section>
-                  <strong>优势</strong>
-                  <p id="matchStrengthText">等待分析。</p>
-                </section>
-                <section>
-                  <strong>主要阻碍</strong>
-                  <p id="matchBlockerText">等待分析。</p>
-                </section>
-              </div>
             </article>
             <div id="matchList" class="match-list"></div>
             <div class="match-actions">

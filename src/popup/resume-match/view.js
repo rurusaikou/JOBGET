@@ -40,8 +40,6 @@ export function renderResumeMatchView(state) {
   qs("#matchMatchedCount").textContent = String(result.directMatches.length);
   qs("#matchPartialCount").textContent = String(result.transferableMatches.length);
   qs("#matchMissingCount").textContent = String(result.gaps.length);
-  qs("#matchStrengthText").textContent = insightText(result.directMatches, result.transferableMatches);
-  qs("#matchBlockerText").textContent = blockerText(result.gaps);
   qs("#matchList").innerHTML = [
     directSectionHtml(result.directMatches),
     transferableSectionHtml(result.transferableMatches),
@@ -55,7 +53,6 @@ export function renderResumeMatchView(state) {
 
 function setMatchDetailsVisible(visible) {
   qs("#matchMetricGrid").classList.toggle("is-hidden", !visible);
-  qs("#matchInsightGrid").classList.toggle("is-hidden", !visible);
   qs("#matchList").classList.toggle("is-hidden", !visible);
   qs("#resumeSuggestionsCard").classList.toggle("is-hidden", !visible);
   qs("#revisionPrompt").classList.toggle("is-hidden", visible);
@@ -65,8 +62,6 @@ function clearMatchDetails() {
   qs("#matchList").innerHTML = "";
   qs("#suggestList").innerHTML = "";
   qs("#revisionPriorityText").textContent = "优先补强：产品落地表达、AI 能力迁移、求职动机";
-  qs("#matchStrengthText").textContent = "等待分析。";
-  qs("#matchBlockerText").textContent = "等待分析。";
 }
 
 function analyzeButtonText(state) {
@@ -85,18 +80,6 @@ function renderShell(level, reason, score, status = "idle") {
   qs("#matchMatchedCount").textContent = "0";
   qs("#matchPartialCount").textContent = "0";
   qs("#matchMissingCount").textContent = "0";
-}
-
-function insightText(directMatches, transferableMatches) {
-  const direct = (directMatches || []).map((item) => item.requirement || item.proof).filter(Boolean);
-  const transferable = (transferableMatches || []).map((item) => item.requirement || item.ability).filter(Boolean);
-  const items = [...direct, ...transferable].slice(0, 2);
-  return items.length ? items.join("，") : "当前简历中可直接利用的优势较少。";
-}
-
-function blockerText(gaps) {
-  const items = (gaps || []).map((item) => item.gap || item.impact).filter(Boolean).slice(0, 2);
-  return items.length ? items.join("，") : "暂未识别明显关键阻碍。";
 }
 
 function directSectionHtml(items) {
