@@ -31,7 +31,7 @@
     // 以第一行对象的 key 作为表头，后续每个对象按同一表头顺序输出。
     // 使用 inlineStr 可以省掉 sharedStrings.xml，让文件结构更简单。
     const headers = Object.keys(rows[0] || { "提示": "" });
-    const allRows = [headers, ...rows.map((row) => headers.map((header) => row[header] || ""))];
+    const allRows = [headers, ...rows.map((row) => headers.map((header) => row[header] ?? ""))];
     const xmlRows = allRows
       .map((row, rowIndex) => {
         const cells = row

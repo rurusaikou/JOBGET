@@ -1,5 +1,6 @@
 import { attachJsonSchemaFormat, postResponses, validateModelSettings } from "../api/client.js";
-import { compactText, MODEL_TOKEN_LIMITS } from "../api/token-limits.js";
+import { extractTokenUsage } from "../api/response.js";
+import { MODEL_TOKEN_LIMITS } from "../api/token-limits.js";
 import { DEEP_ANALYSIS_RESPONSE_SCHEMA, deepAnalysisMessages } from "../prompts/deep-analysis.js";
 import { parseAnalysisResponse } from "./response.js";
 import { validateJobForAnalysis } from "./result.js";
@@ -13,7 +14,7 @@ export async function analyzeJobWithAi(job, settings) {
     model: settings.model.trim(),
     temperature: 0.2,
     max_tokens: MODEL_TOKEN_LIMITS.deepAnalysis.outputTokens,
-    messages: deepAnalysisMessages(jobForDeepAnalysisPrompt(job))
+    messages: deepAnalysisMessages(job)
   }, DEEP_ANALYSIS_RESPONSE_SCHEMA, "job_deep_analysis");
 
   const payload = await postResponses({
@@ -22,12 +23,8 @@ export async function analyzeJobWithAi(job, settings) {
     body: requestBody,
     errorPrefix: "分析失败"
   });
-  return parseAnalysisResponse(payload);
-}
-
-function jobForDeepAnalysisPrompt(job) {
   return {
-    ...job,
-    description: compactText(job.description, MODEL_TOKEN_LIMITS.deepAnalysis.inputChars.jobDescription)
+    ...parseAnalysisResponse(payload),
+    usage: extractTokenUsage(payload)
   };
 }

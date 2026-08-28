@@ -16,7 +16,13 @@ export async function exportJobs(jobs, button, emptyText) {
 function jobRows(jobs) {
   return dedupeJobs(jobs).map((job) => {
     const analysis = job.deepAnalysis || {};
-    const match = job.resumeMatch && job.resumeMatch.result ? job.resumeMatch.result : {};
+    const resumeMatch = job.resumeMatch || {};
+    const match = resumeMatch.result || {};
+    const greeting = job.greeting && (!resumeMatch.key || job.greeting.key === resumeMatch.key) ? job.greeting : {};
+    const greetingResult = greeting.result || {};
+    const analysisUsage = analysis.usage || {};
+    const matchUsage = match.usage || {};
+    const greetingUsage = greetingResult.usage || {};
 
     return {
       "岗位": job.title || "",
@@ -33,14 +39,22 @@ function jobRows(jobs) {
       "核心要求": joinList(analysis.coreRequirements),
       "隐形要求": joinList(analysis.hiddenRequirements),
       "理想候选人": joinList(analysis.idealCandidate),
-      "深度分析时间": formatExportTime(analysis.updatedAt),
       "匹配等级": match.level || "",
       "匹配说明": match.reason || "",
       "直接匹配": joinObjects(match.directMatches, ["requirement", "experience", "proof"]),
       "可迁移能力": joinObjects(match.transferableMatches, ["requirement", "experience", "ability", "boundary"]),
       "关键缺口": joinObjects(match.gaps, ["gap", "impact"]),
       "简历修改建议": joinObjects(match.revisions, ["summary", "original", "direction", "rewrite"]),
-      "匹配分析时间": formatExportTime(job.resumeMatch && job.resumeMatch.updatedAt)
+      "求职开场白": greetingResult.greeting || "",
+      "JD分析输入Tokens": tokenValue(analysisUsage.inputTokens),
+      "JD分析输出Tokens": tokenValue(analysisUsage.outputTokens),
+      "JD分析总Tokens": tokenValue(analysisUsage.totalTokens),
+      "匹配分析输入Tokens": tokenValue(matchUsage.inputTokens),
+      "匹配分析输出Tokens": tokenValue(matchUsage.outputTokens),
+      "匹配分析总Tokens": tokenValue(matchUsage.totalTokens),
+      "开场白输入Tokens": tokenValue(greetingUsage.inputTokens),
+      "开场白输出Tokens": tokenValue(greetingUsage.outputTokens),
+      "开场白总Tokens": tokenValue(greetingUsage.totalTokens)
     };
   });
 }
@@ -56,11 +70,8 @@ function joinObjects(items, keys) {
   }).filter(Boolean).join("\n");
 }
 
-function formatExportTime(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("zh-CN");
+function tokenValue(value) {
+  return Number.isFinite(value) ? value : "";
 }
 
 async function downloadWorkbook(jobs, filename) {

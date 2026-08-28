@@ -1,11 +1,11 @@
-export const MAX_JD_ANALYSIS_LENGTH = 10000;
+import { MODEL_INPUT_LIMITS } from "../api/token-limits.js";
 
 export function validateJobForAnalysis(job) {
   const description = String(job && job.description || "").trim();
   const compact = description.replace(/\s+/g, "");
 
   if (!description) return { ok: false, message: "JD 内容为空，未发起分析。" };
-  if (description.length > MAX_JD_ANALYSIS_LENGTH) return { ok: false, message: "JD 内容超过 10000 字，未发起分析。" };
+  if (description.length > MODEL_INPUT_LIMITS.jobDescriptionChars) return { ok: false, message: "JD 内容超过 5000 字，未发起分析。" };
   if (compact.length < 20) return { ok: false, message: "JD 内容异常，未发起分析。" };
   if (/^(暂无|无|未识别|undefined|null|-)+$/i.test(compact)) return { ok: false, message: "JD 内容异常，未发起分析。" };
 
@@ -19,7 +19,8 @@ export function normalizeStoredDeepAnalysis(analysis) {
     coreRequirements: normalizeList(analysis.coreRequirements),
     hiddenRequirements: normalizeList(analysis.hiddenRequirements),
     idealCandidate: normalizeList(analysis.idealCandidate),
-    updatedAt: analysis.updatedAt || ""
+    updatedAt: analysis.updatedAt || "",
+    usage: normalizeTokenUsage(analysis.usage)
   };
 }
 
@@ -49,4 +50,28 @@ function normalizeList(value) {
     .map((item) => String(item || "").replace(/\s+/g, " ").trim())
     .filter(Boolean)
     .slice(0, 5);
+}
+
+function normalizeTokenUsage(usage) {
+  if (!usage || typeof usage !== "object") return null;
+  const inputTokens = numberOrEmpty(usage.inputTokens);
+  const outputTokens = numberOrEmpty(usage.outputTokens);
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: totalTokensOrFallback(usage.totalTokens, inputTokens, outputTokens)
+  };
+}
+
+function numberOrEmpty(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const number = Number(value);
+  return Number.isFinite(number) ? number : "";
+}
+
+function totalTokensOrFallback(value, inputTokens, outputTokens) {
+  const totalTokens = numberOrEmpty(value);
+  if (totalTokens !== "") return totalTokens;
+  if (inputTokens === "" || outputTokens === "") return "";
+  return inputTokens + outputTokens;
 }

@@ -1,8 +1,8 @@
 import { logApiError } from "../api/debug.js";
 import { jdAnalysisToText } from "../deep-analysis/prompt-text.js";
 import { attachJsonSchemaFormat, postResponses, validateModelSettings } from "../api/client.js";
-import { extractResponseContent } from "../api/response.js";
-import { compactText, greetingOutputTokens, MODEL_TOKEN_LIMITS } from "../api/token-limits.js";
+import { extractResponseContent, extractTokenUsage } from "../api/response.js";
+import { greetingOutputTokens, MODEL_INPUT_LIMITS } from "../api/token-limits.js";
 import { GREETING_RESPONSE_SCHEMA, greetingMessages } from "../prompts/greeting.js";
 import { parseGreetingResponse } from "./response.js";
 
@@ -14,8 +14,8 @@ export async function generateGreetingWithAi({ job, resume, matchResult, tone, m
     temperature: 0.45,
     max_tokens: greetingOutputTokens(maxChars),
     messages: greetingMessages({
-      job: jobForGreetingPrompt(job),
-      jdAnalysisText: compactText(jdAnalysisToText(job.deepAnalysis), MODEL_TOKEN_LIMITS.greeting.inputChars.jdAnalysis),
+      job,
+      jdAnalysisText: jdAnalysisToText(job.deepAnalysis),
       resumeText: resumeEvidenceToText(resume, matchResult),
       matchText: matchResultToText(matchResult),
       toneLabel: toneLabel(tone),
@@ -30,7 +30,10 @@ export async function generateGreetingWithAi({ job, resume, matchResult, tone, m
     errorPrefix: "生成失败"
   });
   try {
-    return parseGreetingResponse(payload, maxChars);
+    return {
+      ...parseGreetingResponse(payload, maxChars),
+      usage: extractTokenUsage(payload)
+    };
   } catch (error) {
     logApiError("greeting-parse", {
       message: error.message,
@@ -41,8 +44,13 @@ export async function generateGreetingWithAi({ job, resume, matchResult, tone, m
 }
 
 function validateGreetingInput(job, resume, matchResult, settings) {
-  if (!job || !String(job.description || "").trim()) throw new Error("当前 JD 内容为空，无法生成求职开场白。");
+  const jdLength = String(job && job.description || "").trim().length;
+  const resumeLength = String(resume && resume.rawText || "").trim().length;
+
+  if (!job || !jdLength) throw new Error("当前 JD 内容为空，无法生成求职开场白。");
+  if (jdLength > MODEL_INPUT_LIMITS.jobDescriptionChars) throw new Error("当前 JD 内容超过 5000 字，无法生成求职开场白。");
   if (!resume) throw new Error("请先上传并结构化简历。");
+  if (resumeLength > MODEL_INPUT_LIMITS.resumeChars) throw new Error("当前简历内容超过 3000 字，无法生成求职开场白。");
   if (!matchResult) throw new Error("请先完成简历与 JD 匹配分析。");
   validateModelSettings(settings);
 }
@@ -65,8 +73,8 @@ function matchResultToText(matchResult) {
   appendMatches(lines, "避免夸大的缺口", matchResult.gaps, (item) => [
     item.gap,
     item.impact
-  ], 2);
-  return compactText(lines.join("\n"), MODEL_TOKEN_LIMITS.greeting.inputChars.matchSummary);
+  ]);
+  return lines.join("\n");
 }
 
 function resumeEvidenceToText(resume, matchResult) {
@@ -79,12 +87,12 @@ function resumeEvidenceToText(resume, matchResult) {
   ], (item) => [
     item.experience,
     item.proof || item.ability
-  ], 4);
-  return compactText(lines.join("\n"), MODEL_TOKEN_LIMITS.greeting.inputChars.resumeEvidence);
+  ]);
+  return lines.join("\n");
 }
 
-function appendMatches(lines, title, items, renderParts, limit = 3) {
-  const rows = (items || []).slice(0, limit).map((item) => renderParts(item).filter(Boolean).join("｜")).filter(Boolean);
+function appendMatches(lines, title, items, renderParts) {
+  const rows = (items || []).map((item) => renderParts(item).filter(Boolean).join("｜")).filter(Boolean);
   if (rows.length) lines.push(`${title}：`, ...rows.map((row) => `- ${row}`));
 }
 
@@ -96,11 +104,4 @@ function toneLabel(tone) {
     warm: "热情"
   };
   return labels[tone] || labels.natural;
-}
-
-function jobForGreetingPrompt(job) {
-  return {
-    ...job,
-    description: compactText(job.description, MODEL_TOKEN_LIMITS.greeting.inputChars.jobDescription)
-  };
 }

@@ -251,6 +251,7 @@ function renderCurrentResumeMatch() {
   if (restored) {
     updateRevisionStepState();
     updateGreetingStepState();
+    restoreStoredGreetingForCurrentJob();
   }
 }
 
@@ -375,6 +376,22 @@ async function saveResumeMatchToJob(index, key, result) {
       key,
       updatedAt: new Date().toISOString(),
       result
+    },
+    greeting: null
+  };
+  state.jobs = await setJobs(state.jobs);
+}
+
+async function saveGreetingToJob(index, key, result, options) {
+  if (!state.jobs[index]) return;
+  state.jobs[index] = {
+    ...state.jobs[index],
+    greeting: {
+      key,
+      tone: options.tone,
+      maxChars: options.maxChars,
+      updatedAt: new Date().toISOString(),
+      result
     }
   };
   state.jobs = await setJobs(state.jobs);
@@ -413,11 +430,29 @@ function restoreStoredResumeMatchForCurrentJob() {
   return true;
 }
 
+function restoreStoredGreetingForCurrentJob() {
+  if (!state.resumeUploaded || !state.resumeMatchResult || state.greetingLoading || state.greetingResult) return false;
+
+  const stored = currentJob().greeting;
+  if (!stored || stored.key !== currentResumeMatchKey() || !stored.result || !stored.result.greeting) return false;
+
+  state.greetingResult = stored.result.greeting;
+  qs("#greetingText").textContent = stored.result.greeting;
+  qs("#copyStatus").textContent = stored.updatedAt ? "已恢复上次生成的求职开场白。" : "";
+  updateGreetingCounter();
+  updateGreetingControls();
+  return true;
+}
+
 async function startGreetingGeneration() {
   if (!state.resumeMatchResult || state.greetingLoading) return;
 
   // 开场白依赖匹配结果；重新匹配或清除简历时会一起失效。
   const requestId = state.greetingRequestId + 1;
+  const jobIndex = state.selectedJob;
+  const matchKey = currentResumeMatchKey();
+  const tone = qs("#greetingTone").value;
+  const maxChars = greetingLengthLimit();
   state.greetingRequestId = requestId;
   state.greetingLoading = true;
   state.greetingError = null;
@@ -431,11 +466,13 @@ async function startGreetingGeneration() {
       job: currentJob(),
       resume: state.resume,
       matchResult: state.resumeMatchResult,
-      tone: qs("#greetingTone").value,
-      maxChars: greetingLengthLimit(),
+      tone,
+      maxChars,
       settings
     });
     if (requestId !== state.greetingRequestId) return;
+    if (jobIndex !== state.selectedJob || matchKey !== currentResumeMatchKey()) return;
+    await saveGreetingToJob(jobIndex, matchKey, result, { tone, maxChars });
     state.greetingResult = result.greeting;
     qs("#greetingText").textContent = result.greeting;
     qs("#copyStatus").textContent = "已生成，可复制后按投递场景微调。";

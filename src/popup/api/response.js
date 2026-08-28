@@ -8,6 +8,19 @@ export function extractResponseContent(payload) {
   return "";
 }
 
+export function extractTokenUsage(payload) {
+  const usage = payload && payload.usage && typeof payload.usage === "object" ? payload.usage : null;
+  if (!usage) return null;
+  const inputTokens = numberOrEmpty(usage.input_tokens);
+  const outputTokens = numberOrEmpty(usage.output_tokens);
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: totalTokensOrFallback(usage.total_tokens, inputTokens, outputTokens)
+  };
+}
+
 function outputItemToText(item) {
   // Responses API 会同时返回 reasoning 和最终 message；页面只应该消费最终答案。
   if (!item || item.type !== "message") return "";
@@ -28,4 +41,17 @@ function contentToText(content) {
     return contentToText(content.text || content.output_text);
   }
   return "";
+}
+
+function numberOrEmpty(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const number = Number(value);
+  return Number.isFinite(number) ? number : "";
+}
+
+function totalTokensOrFallback(value, inputTokens, outputTokens) {
+  const totalTokens = numberOrEmpty(value);
+  if (totalTokens !== "") return totalTokens;
+  if (inputTokens === "" || outputTokens === "") return "";
+  return inputTokens + outputTokens;
 }

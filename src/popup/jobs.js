@@ -56,7 +56,8 @@ export function normalizeJobForUi(job) {
     sourceUrl: job && job.sourceUrl ? job.sourceUrl : "",
     starred: Boolean(job && job.starred),
     deepAnalysis: normalizeStoredDeepAnalysis(job && job.deepAnalysis),
-    resumeMatch: normalizeStoredResumeMatch(job && job.resumeMatch)
+    resumeMatch: normalizeStoredResumeMatch(job && job.resumeMatch),
+    greeting: normalizeStoredGreeting(job && job.greeting)
   };
 }
 
@@ -99,11 +100,52 @@ function normalizeStoredResumeMatch(match) {
       directMatches: normalizeObjectList(result.directMatches),
       transferableMatches: normalizeObjectList(result.transferableMatches),
       gaps: normalizeObjectList(result.gaps),
-      revisions: normalizeObjectList(result.revisions)
+      revisions: normalizeObjectList(result.revisions),
+      usage: normalizeTokenUsage(result.usage)
+    }
+  };
+}
+
+function normalizeStoredGreeting(greeting) {
+  if (!greeting || typeof greeting !== "object") return null;
+  const result = greeting.result && typeof greeting.result === "object" ? greeting.result : greeting;
+  return {
+    key: greeting.key || "",
+    tone: greeting.tone || "",
+    maxChars: Number(greeting.maxChars) || 0,
+    updatedAt: greeting.updatedAt || "",
+    result: {
+      greeting: result.greeting || "",
+      rawText: result.rawText || "",
+      usage: normalizeTokenUsage(result.usage)
     }
   };
 }
 
 function normalizeObjectList(value) {
   return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
+}
+
+function normalizeTokenUsage(usage) {
+  if (!usage || typeof usage !== "object") return null;
+  const inputTokens = numberOrEmpty(usage.inputTokens);
+  const outputTokens = numberOrEmpty(usage.outputTokens);
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: totalTokensOrFallback(usage.totalTokens, inputTokens, outputTokens)
+  };
+}
+
+function numberOrEmpty(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const number = Number(value);
+  return Number.isFinite(number) ? number : "";
+}
+
+function totalTokensOrFallback(value, inputTokens, outputTokens) {
+  const totalTokens = numberOrEmpty(value);
+  if (totalTokens !== "") return totalTokens;
+  if (inputTokens === "" || outputTokens === "") return "";
+  return inputTokens + outputTokens;
 }
