@@ -1,0 +1,86 @@
+import { newId } from "./identity.js";
+
+export const CONTEXT_VERSION = 1;
+export const SUMMARY_VERSION = 2;
+export const RESUME_PROFILE_VERSION = 1;
+export const PROMPT_VERSIONS = { deep_analysis: 1, resume_profile: 1, resume_match: 4, greeting: 2 };
+
+export function taskDependencies(task, { job, resume, tone, maxChars } = {}) {
+  if (!job?.id || !job.contentVersion) return null;
+  const dependencies = {
+    task,
+    contextVersion: CONTEXT_VERSION,
+    promptVersion: PROMPT_VERSIONS[task],
+    summaryVersion: SUMMARY_VERSION,
+    jobId: job.id,
+    jobVersion: job.contentVersion
+  };
+  if (task !== "deep_analysis") {
+    if (!resume?.id || !resume.contentVersion) return null;
+    // Resume Match 及其下游必须建立在当前 JD 的有效 Deep Analysis 上。
+    // Deep Analysis 是数据依赖，不要求用户提前手动点击；Task Runner 会自动补齐。
+    const analysis = reusableAnalysis(job);
+    if (!analysis) return null;
+    const profile = reusableResumeProfile(resume);
+    if (!profile) return null;
+    dependencies.resumeId = resume.id;
+    dependencies.resumeVersion = resume.contentVersion;
+    dependencies.resumeProfileId = profile.resultId;
+    dependencies.resumeProfileVersion = profile.version;
+    dependencies.analysisResultId = analysis.resultId;
+  }
+  if (task === "greeting") {
+    if (!isResultCurrent("resume_match", job.resumeMatch, { job, resume })) return null;
+    dependencies.matchResultId = job.resumeMatch.resultId;
+    dependencies.tone = tone || "natural";
+    dependencies.maxChars = Number(maxChars) || 120;
+  }
+  return dependencies;
+}
+
+export function dependencyKey(dependencies) {
+  return dependencies ? JSON.stringify(dependencies) : "";
+}
+
+export function taskKey(task, inputs) {
+  return dependencyKey(taskDependencies(task, inputs));
+}
+
+export function isResultCurrent(task, stored, inputs) {
+  const key = taskKey(task, inputs);
+  return Boolean(key && stored?.resultId && stored.key === key && dependencyKey(stored.dependencies) === key);
+}
+
+export function reusableAnalysis(job) {
+  return isResultCurrent("deep_analysis", job?.deepAnalysis, { job }) ? job.deepAnalysis : null;
+}
+
+export function reusableResumeProfile(resume) {
+  const profile = resume?.profile;
+  return profile?.resultId
+    && profile.version === RESUME_PROFILE_VERSION
+    && profile.sourceVersion === resume.contentVersion
+    && profile.promptVersion === PROMPT_VERSIONS.resume_profile
+    ? profile
+    : null;
+}
+
+export function resultMetadata(context) {
+  return {
+    resultId: newId(context.task),
+    key: dependencyKey(context.dependencies),
+    dependencies: context.dependencies,
+    contextStats: context.stats,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+// 保留元数据供存储归一化使用；无元数据的历史结果不猜测版本、不自动复用。
+export function storedMetadata(value) {
+  return {
+    resultId: value?.resultId || "",
+    dependencies: value?.dependencies || null,
+    contextStats: value?.contextStats || null,
+    key: value?.key || ""
+  };
+}
