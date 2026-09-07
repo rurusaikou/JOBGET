@@ -20,6 +20,7 @@ export function parseResumeProfileResponse(payload) {
   return normalizeProfile(parsed);
 }
 
+// 以字段白名单归一化模型输出；自由文本仅清理空白，此处不执行联系方式脱敏。
 function normalizeProfile(value) {
   const data = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const profile = {

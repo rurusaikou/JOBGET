@@ -6,6 +6,7 @@ import { clearResume, getResume, setResume } from "./storage.js";
 
 const EMPTY_RESUME_MESSAGE = "当前还没有简历。上传 PDF / DOCX 后，会在本地提取内容并用于匹配分析。";
 
+// 返回 true 只表示本地解析及保存成功；Controller 随后启动 Resume Understanding，不自动 Match。
 export async function handleResumeFile(state, file, callbacks) {
   const input = qs("#resumeFile");
   qs("#resumeStatus").textContent = `正在解析：${file.name}...`;
@@ -31,6 +32,7 @@ export async function handleResumeFile(state, file, callbacks) {
     return false;
   } finally {
     input.disabled = false;
+    // 清空文件选择，让用户再次选择同一个文件时仍能触发 change。
     input.value = "";
     state.resumeState.parsing = false;
     qs("#exampleResumeBtn").disabled = false;
@@ -62,6 +64,7 @@ export async function useExampleResume(state, callbacks) {
   }
 }
 
+// 恢复时只加载本地简历；失效或缺失的 Profile 留待用户发起 Match 时补齐。
 export async function restoreResume(state, callbacks) {
   state.resumeState.data = await getResume();
   if (!state.resumeState.data) {

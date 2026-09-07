@@ -15,7 +15,6 @@ export function greetingMessages({ job, highlights, toneLabel, maxChars }) {
 你是一位资深招聘专家，请为候选人本人生成招聘平台首次沟通开场白。
 
 输入：
-公司：${job.company || "未识别"}
 岗位：${job.title || "未识别"}
 可使用的匹配亮点：${highlights && highlights.length ? JSON.stringify(highlights) : "没有可验证的匹配亮点，只表达申请岗位及沟通意愿，不声称具备特定经验"}
 语气：${toneLabel}

@@ -74,6 +74,7 @@ async function sendRequest(request, settings) {
   });
 }
 
+// HTTP 成功不代表模型已完成输出；先识别 incomplete，再交由 Feature 解析业务内容。
 function handleResponsesPayload(payload, errorPrefix, label) {
   if (payload && payload.status === "incomplete") {
     const reason = payload.incomplete_details && payload.incomplete_details.reason || "unknown";

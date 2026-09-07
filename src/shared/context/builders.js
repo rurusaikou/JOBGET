@@ -1,8 +1,10 @@
 /**
  * AI Context 组装器。
  *
- * 每个任务只拿自己真正需要的信息。优先使用结构化摘要，必要时回退原文；
- * 超出预算直接报错，不静默截断，避免模型在缺失信息上做错误判断。
+ * 按任务组装输入：Deep Analysis 使用 JD 原文；Match 使用岗位事实、岗位分析、
+ * JD 证据摘录和 Resume Profile；Greeting 使用岗位名称与匹配亮点。
+ * Match 必须有有效的两侧 Profile，不回退完整 JD 或简历原文。
+ * 常规 Context 超出预算直接报错；Deep Analysis 的重试单独构建压缩输入。
  */
 import { MODEL_INPUT_LIMITS } from "../ai/token-limits.js";
 import { reusableResumeProfile, taskDependencies } from "./cache.js";
@@ -29,6 +31,7 @@ export function buildTaskContext({ task, job, resume, tone = "natural", maxChars
     if (!resumeProfile) {
       throw new Error("简历理解尚未完成，请稍后重试。");
     }
+    // 缓存身份和调用统计留在本地，模型只接收候选人事实。
     const { usage: _usage, resultId: _resultId, version: _version, promptVersion: _promptVersion, sourceVersion: _sourceVersion, updatedAt: _updatedAt, ...profileFacts } = resumeProfile;
     input = {
       job: jd.facts,
@@ -61,7 +64,7 @@ export function buildTaskContext({ task, job, resume, tone = "natural", maxChars
       }));
     const highlights = [...directHighlights, ...transferableHighlights].slice(0, 3);
     input = {
-      job: { title: job.title, company: job.company },
+      job: { title: job.title },
       highlights,
       toneLabel: ({ natural: "自然", professional: "专业", concise: "简洁", warm: "热情" })[tone] || "自然",
       maxChars: Number(maxChars) || 120
@@ -70,6 +73,7 @@ export function buildTaskContext({ task, job, resume, tone = "natural", maxChars
   } else {
     throw new Error(`不支持的任务：${task}`);
   }
+  // 预算计算序列化业务输入（含字段名），不包含后续添加的 Prompt 指令和输出 Schema。
   const inputChars = JSON.stringify(input).length;
   if (inputChars > MODEL_INPUT_LIMITS.contextChars) throw new Error("当前任务所需信息过长，请精简材料后重试；未截断输入。");
   return { task, dependencies, input, stats: { ...modes, inputChars } };

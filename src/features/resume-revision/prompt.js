@@ -24,11 +24,10 @@ export const RESUME_REVISION_RESPONSE_SCHEMA = {
   }
 };
 
-export function resumeRevisionMessages({ job, resumeProfile, jobSummary, resumeMode }, matchResult) {
+export function resumeRevisionMessages({ job, resumeProfile, resumeMode }, matchResult) {
   const prompt = `
 你是一位资深简历顾问。请根据已经完成的岗位匹配结论，给出最多 3 条最重要的简历修改建议。
 
-公司：${job.company || "未识别"}
 岗位：${job.title || "未识别"}
 简历输入类型：${resumeMode}
 Resume Profile：${resumeProfile ? JSON.stringify(resumeProfile) : "未识别"}

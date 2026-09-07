@@ -13,6 +13,7 @@ export async function getJobs() {
 
 export async function setJobs(jobs) {
   const nextJobs = await Promise.all(dedupeJobs(jobs.map(normalizeJobForUi)).map(async (job) => {
+    // 先更新内容版本，再构建摘要，确保旧版本的岗位分析不会被拼入新摘要。
     job.contentVersion = await contentVersion(jobContent(job));
     job.summary = buildJobSummary(job);
     return job;

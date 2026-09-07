@@ -3,8 +3,10 @@ import { newId } from "./identity.js";
 export const CONTEXT_VERSION = 1;
 export const SUMMARY_VERSION = 2;
 export const RESUME_PROFILE_VERSION = 1;
-export const PROMPT_VERSIONS = { deep_analysis: 1, resume_profile: 1, resume_match: 4, greeting: 2 };
+// Revision 随 Match 结果保存，未单独维护 Prompt 版本；修改 Revision Prompt 时需同步提升 resume_match 版本。
+export const PROMPT_VERSIONS = { deep_analysis: 1, resume_profile: 1, resume_match: 5, greeting: 3 };
 
+// 依赖用于判断缓存是否有效，不代表所有字段都会发送给模型；例如 Greeting 仍绑定完整岗位版本。
 export function taskDependencies(task, { job, resume, tone, maxChars } = {}) {
   if (!job?.id || !job.contentVersion) return null;
   const dependencies = {
@@ -55,6 +57,7 @@ export function reusableAnalysis(job) {
   return isResultCurrent("deep_analysis", job?.deepAnalysis, { job }) ? job.deepAnalysis : null;
 }
 
+// 内容、Schema 和 Prompt 三个版本都一致才可复用；resultId 让下游识别同内容重新生成的 Profile。
 export function reusableResumeProfile(resume) {
   const profile = resume?.profile;
   return profile?.resultId

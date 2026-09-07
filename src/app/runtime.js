@@ -27,6 +27,7 @@ export function updateJobs(update) {
     state.jobs = await setJobs(update(state.jobs));
     return state.jobs;
   });
+  // 队列吞掉失败以便后续写入继续；返回原始 operation，让当前调用方仍能收到错误。
   jobsWriteQueue = operation.catch(() => {});
   return operation;
 }
@@ -86,6 +87,7 @@ export function syncTaskState() {
       result: matchResult?.revisions || []
     });
   } else if (matchResult?.revisionCompleted) {
+    // 空建议列表也可能是成功结果，必须根据完成标记判断，不能用数组长度判断。
     Object.assign(state.tasks.resumeRevision, { status: TASK_STATUS.SUCCESS, error: null, result: matchResult.revisions || [] });
   } else {
     Object.assign(state.tasks.resumeRevision, { status: TASK_STATUS.IDLE, error: null, result: null });

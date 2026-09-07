@@ -8,6 +8,7 @@ export function createRequestRegistry() {
       requests.set(slot(task, jobId), ticket);
       return ticket;
     },
+    // 比较对象身份：即使两次请求的依赖 key 相同，也只允许最新一次写回。
     isCurrent(ticket) {
       return requests.get(slot(ticket.task, ticket.jobId)) === ticket;
     },
@@ -18,6 +19,7 @@ export function createRequestRegistry() {
     finish(ticket, error = "") {
       if (this.isCurrent(ticket)) Object.assign(ticket, { loading: false, error });
     },
+    // 失效仅撤销 ticket 的写回资格，不会中止已发出的网络请求。
     invalidate(task, jobId) {
       for (const [key, ticket] of requests) {
         if ((!task || ticket.task === task) && (!jobId || ticket.jobId === jobId)) requests.delete(key);
