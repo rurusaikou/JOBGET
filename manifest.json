@@ -5,7 +5,13 @@
   "version": "1.4.1",
   "minimum_chrome_version": "114",
   "action": {
-    "default_title": "JOBGET"
+    "default_title": "JOBGET",
+    "default_icon": {
+      "16": "assets/icons/logo-transparent-16.png",
+      "32": "assets/icons/logo-transparent-32.png",
+      "48": "assets/icons/logo-transparent-48.png",
+      "128": "assets/icons/logo-transparent-128.png"
+    }
   },
   "background": {
     "service_worker": "src/background.js"
@@ -33,5 +39,11 @@
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "icons": {
+    "16": "assets/icons/logo-transparent-16.png",
+    "32": "assets/icons/logo-transparent-32.png",
+    "48": "assets/icons/logo-transparent-48.png",
+    "128": "assets/icons/logo-transparent-128.png"
+  }
 }

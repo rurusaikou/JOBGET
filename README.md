@@ -8,12 +8,12 @@ JOBGET 是一个面向求职者的浏览器侧边栏插件。用户在招聘网�
 
 适合同时浏览多个岗位、需要快速筛选机会，又不想反复复制 JD、简历和 Prompt 的求职者。
 
-当前支持：BOSS 直聘、智联招聘、猎聘。
+自动提取支持：BOSS 直聘、智联招聘、猎聘的职位详情页。官网、公众号、猎头消息等其他渠道的 JD，可通过“手动添加JD”粘贴保存。
 
 推荐使用流程：
 
 ```text
-招聘网站职位 ─→ 提取 JD ─→ Job Profile ─┐
+提取 JD / 手动添加 JD ─→ Job Profile ─┐
                                        ├─→ Match ─→ Revision / Greeting
 上传 PDF / DOCX ─→ Resume Profile ─────┘
 ```
@@ -36,7 +36,8 @@ JOBGET 是一个面向求职者的浏览器侧边栏插件。用户在招聘网�
 
 ## 主要功能
 
-- 提取并保存职位信息，支持搜索、收藏、清空和 Excel 导出。
+- 提取或手动添加职位信息，支持搜索、收藏、清空和 Excel 导出。
+- 手动添加只需填写 JD 正文（最多 1000 字符），职位名称、公司 / 地点、岗位信息、薪资选填。
 - JD Deep Analysis：岗位本质、核心要求、隐形要求、理想候选人。
 - PDF / DOCX 本地文本提取。
 - AI Resume Understanding：把简历一次性整理成可复用 Resume Profile，重点保留工作与项目证据。
@@ -53,6 +54,7 @@ JDGET/
 ├── src/
 │   ├── app/                    # 应用状态、Controller、AI 工作流编排
 │   ├── features/
+│   │   ├── jobs/               # 提取、手动添加、去重、列表与导出
 │   │   ├── jd-analysis/        # Job Understanding
 │   │   ├── resume/             # 文件读取 + Resume Understanding + 缓存
 │   │   ├── resume-match/
@@ -72,9 +74,9 @@ JDGET/
 
 1. 在 Chrome / Edge 扩展管理页开启“开发者模式”。
 2. 选择“加载已解压的扩展程序”，加载本项目目录。
-3. 打开支持的招聘网站职位页面并打开 JOBGET 侧边栏。
+3. 打开 JOBGET 侧边栏；自动提取时需先进入支持的招聘网站职位详情页。
 4. 在“API 设置”中填写 Provider、Base URL、模型名和 API Key，并执行连接测试。
-5. 提取 JD，上传 PDF / DOCX 简历。
+5. 提取 JD 或点击“手动添加JD”粘贴正文并保存，再上传 PDF / DOCX 简历。手动保存后返回岗位池，可点击“查看详情”或“深度分析”；收集 JD 本身无需 API Key。
 6. 简历上传成功后，JOBGET 会立即生成并缓存 Resume Profile，但**不会自动开始 Match**；用户点击“匹配”时，系统只补齐仍缺失的 Job Profile / Resume Profile，再进入 Match。
 7. Match 成功后继续查看 Revision 或生成 Greeting。
 8. 开发调试时运行 `npm test`。
@@ -92,6 +94,9 @@ API Key 仅保存在浏览器 session storage；岗位、简历与派生 Profile
 ## 版本迭代
 
 ### v1.4.1
+
+- 新增手动添加 JD：四项基本信息选填、正文必填，最多 1000 字符；保存后返回岗位池，支持去重。
+- 提取前检查网址，不支持的页面显示中文提示并引导手动添加；提取与添加按钮使用统一的蓝色线条图标。
 
 - 对齐“提前理解、用户触发匹配”的产品流程：上传简历后立即生成并缓存 Resume Profile，但不自动启动 Match。
 - 加强 Resume Profile 版本保护：不同 `contentVersion` 的旧 Profile 不允许被带入新简历版本。

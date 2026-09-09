@@ -35,7 +35,7 @@ function configureControllers() {
     onView: (view) => { if (view === "favorites") renderFavorites(); },
     onStep: () => { renderResumeFlow(); renderGreeting(); }
   });
-  configureJobsController({ openJob: openJobFromList, refresh });
+  configureJobsController({ openJob: openJobFromList, refresh, setView });
   configureDetailController({ refresh, setStep });
   configureResumeController({ refresh, setStep });
   configureGreetingController({ refresh, setStep });
@@ -57,7 +57,7 @@ async function init() {
   await restoreResumeState();
   await loadSettings();
   refresh();
-  setStatus(state.jobs.length ? "可以继续提取或导出" : "准备提取当前页面");
+  setStatus(state.jobs.length ? "可以继续提取、手动添加或导出" : "可提取当前页面或手动添加 JD");
   setView("jobs");
   setStep("jd");
 }

@@ -89,7 +89,7 @@ function normalizeForDedupe(value) {
     .toLowerCase();
 }
 
-// URL 与岗位基本信息共同决定身份；无 URL 时回退到基本信息，不比较 JD 正文。
+// 手动录入用基本信息与正文去重；网页提取保留原有身份规则。
 function jobDedupeKey(job) {
   const sourceUrl = normalizeForDedupe(job.sourceUrl);
   const identity = [
@@ -99,6 +99,9 @@ function jobDedupeKey(job) {
     normalizeForDedupe(job.salary)
   ].filter(Boolean).join("|");
 
+  if (job.sourceSite === "手动添加" && !sourceUrl) {
+    return JSON.stringify(["manual", identity, normalizeForDedupe(job.experience), normalizeForDedupe(job.description)]);
+  }
   return sourceUrl ? `${sourceUrl}|${identity}` : identity;
 }
 

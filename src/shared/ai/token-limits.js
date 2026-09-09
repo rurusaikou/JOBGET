@@ -14,7 +14,7 @@ export const MODEL_INPUT_LIMITS = {
 // 才允许一次更高预算的 Retry，避免把高预算变成所有请求的默认成本。
 export const MODEL_TOKEN_LIMITS = {
   deepAnalysis: {
-    outputTokens: 3000,
+    outputTokens: 4000,
     retryOutputTokens: 6000
   },
   resumeProfile: {

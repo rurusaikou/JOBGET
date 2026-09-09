@@ -16,7 +16,7 @@ export function setView(view) {
   qsa(".view").forEach((node) => node.classList.remove("active"));
   qs(`#${view}View`).classList.add("active");
   qsa(".top-tabs button").forEach((button) => button.classList.toggle("active", button.dataset.tab === view));
-  qs("#plugin").classList.toggle("task-mode", view === "detail" || view === "settings");
+  qs("#plugin").classList.toggle("task-mode", view === "detail" || view === "settings" || view === "manual");
   hooks.onView(view);
 }
 

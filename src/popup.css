@@ -74,15 +74,11 @@ button:disabled {
 }
 
 .logo {
-  display: inline-grid;
-  place-items: center;
+  display: block;
+  flex-shrink: 0;
   width: 26px;
   height: 26px;
-  border-radius: 7px;
-  color: #fff;
-  background: var(--primary);
-  font-size: 11px;
-  font-weight: 800;
+  object-fit: contain;
 }
 
 .icon-btn {
@@ -198,9 +194,27 @@ ul {
   line-height: 1.45;
 }
 
+.title-actions .soft-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .title-actions {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   width: calc(100vw - 28px);
@@ -1751,3 +1765,16 @@ ul {
     grid-template-columns: 1fr;
   }
 }
+
+.manual-form { margin: 0 14px 18px; display: grid; gap: 12px; }
+.manual-field { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 8px; }
+.manual-form label { font-size: 12px; font-weight: 600; }
+.manual-form input, .manual-form textarea { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 7px; padding: 10px; font: inherit; font-size: 12px; background: #fff; color: var(--ink); }
+.manual-form textarea { min-height: 150px; resize: vertical; line-height: 1.6; }
+.manual-form input:focus, .manual-form textarea:focus { outline: 2px solid #8ab4f8; outline-offset: 1px; }
+.manual-form input::placeholder, .manual-form textarea::placeholder { color: var(--muted); }
+.manual-count { text-align: right; }
+.required-mark, .manual-error { color: #c62828; }
+.manual-error { font-size: 12px; }
+.manual-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.manual-actions button { min-width: 100px; }

@@ -2,6 +2,7 @@
  * 岗位池交互：提取、搜索、收藏、导出、清空以及岗位卡片事件。
  * Controller 只连接 DOM、State 与业务动作，不包含 Prompt / Provider 细节。
  */
+import { createManualJob } from "../../features/jobs/manual.js";
 import { exportJobs } from "../../features/jobs/export.js";
 import { extractFromCurrentTab } from "../../features/jobs/extract.js";
 import { favoriteCard, jobCard, jobSearchText } from "../../features/jobs/view.js";
@@ -10,7 +11,7 @@ import { reusableAnalysis } from "../../shared/context/cache.js";
 import { qs, qsa, setStatus } from "../../shared/ui/dom.js";
 import { requests, state, updateJobs } from "../runtime.js";
 
-let actions = { openJob: () => {}, refresh: () => {} };
+let actions = { openJob: () => {}, refresh: () => {}, setView: () => {} };
 
 export function configureJobsController(nextActions = {}) {
   actions = { ...actions, ...nextActions };
@@ -83,6 +84,74 @@ export async function toggleStar(index) {
 }
 
 export function bindJobsEvents() {
+  const form = qs("#manualJobForm");
+  const description = qs("#manualDescription");
+  let saving = false;
+  const resetManual = () => {
+    form.reset();
+    qs("#manualCount").textContent = "0 / 1000";
+    qs("#manualError").textContent = "";
+    description.setCustomValidity("");
+  };
+  qs("#manualAddBtn").addEventListener("click", () => {
+    actions.setView("manual");
+    qs("#manualTitle").focus();
+  });
+  for (const id of ["#manualBackBtn", "#manualCancelBtn"]) {
+    qs(id).addEventListener("click", () => {
+      if (saving) return;
+      resetManual();
+      actions.setView("jobs");
+    });
+  }
+  description.addEventListener("input", () => {
+    qs("#manualCount").textContent = `${description.value.length} / 1000`;
+    description.setCustomValidity("");
+    qs("#manualError").textContent = "";
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (saving) return;
+    let job;
+    try {
+      job = createManualJob(Object.fromEntries(new FormData(form)));
+    } catch (error) {
+      description.setCustomValidity(error.message);
+      description.reportValidity();
+      return;
+    }
+    saving = true;
+    const controls = [...form.elements, qs("#manualBackBtn")];
+    controls.forEach((control) => { control.disabled = true; });
+    qs("#manualSubmitBtn").textContent = "添加中…";
+    qs("#manualError").textContent = "";
+    try {
+      let result;
+      await updateJobs((jobs) => {
+        result = appendUniqueJob(jobs, job);
+        return result.jobs;
+      });
+      if (!result.added) {
+        qs("#manualError").textContent = "已存在相同 JD，未重复保存";
+        return;
+      }
+      state.navigation.selectedJob = state.jobs.length - 1;
+      state.navigation.search = "";
+      qs("#jobSearch").value = "";
+      actions.refresh();
+      resetManual();
+      actions.setView("jobs");
+      setStatus("手动添加成功，已保存到岗位池");
+      qs(`#jobList [data-job="${state.navigation.selectedJob}"]`)?.scrollIntoView({ block: "nearest" });
+    } catch (error) {
+      qs("#manualError").textContent = error.message || "添加失败，请重试";
+    } finally {
+      saving = false;
+      controls.forEach((control) => { control.disabled = false; });
+      qs("#manualSubmitBtn").textContent = "添加 JD";
+    }
+  });
+
   qs("#extractBtn").addEventListener("click", async () => {
     qs("#extractBtn").disabled = true;
     setStatus("正在提取当前页面...");
