@@ -1,3 +1,4 @@
+import { startUsage, cachedUsage } from "../shared/backend/usage.js";
 /**
  * AI 任务编排层。
  *
@@ -47,6 +48,7 @@ export async function runDeepAnalysis(job, { onUpdate = () => {} } = {}) {
   const snapshot = frozenInputs(job);
   const key = taskKey("deep_analysis", snapshot);
   if (!key) return;
+  const finishUsage = startUsage("deep_analysis");
   const ticket = requests.start("deep_analysis", job.id, key);
   onUpdate();
   try {
@@ -64,11 +66,14 @@ export async function runDeepAnalysis(job, { onUpdate = () => {} } = {}) {
         ? { ...item, deepAnalysis: { ...result, ...metadata }, resumeMatch: null, greeting: null }
         : item);
     });
+    if (!stillValid(ticket, "deep_analysis", key, snapshot, state.jobs)) return;
+    finishUsage(true);
     requests.finish(ticket);
     return true;
   } catch (error) {
     // 技术错误（max_output_tokens、JSON 截断、Provider 返回体等）只留在 Debug。
     // 页面不直接暴露内部细节，避免让用户处理自己无法控制的参数。
+    if (requests.isCurrent(ticket)) finishUsage(false);
     requests.finish(ticket, deepAnalysisUserMessage(error));
     return false;
   } finally {
@@ -85,12 +90,13 @@ export async function runResumeUnderstanding({ onUpdate = () => {} } = {}) {
   const live = state.resumeState.data;
   if (!live?.id || !live?.contentVersion) return false;
   if (resumeBlockingMessage(live)) return false;
-  if (reusableResumeProfile(live)) return true;
+  if (reusableResumeProfile(live)) { cachedUsage("resume_profile"); return true; }
 
   // State 可能因 UI 刷新时序暂时落后于 chrome.storage。发请求前先检查持久化缓存，
   // 有效则同步回运行时，避免“上传已生成一次，点击开始分析又生成一次”。
   const persisted = await getResume();
   if (persisted?.id === live.id && persisted.contentVersion === live.contentVersion && reusableResumeProfile(persisted)) {
+    cachedUsage("resume_profile");
     state.resumeState.data = persisted;
     state.resumeState.profileError = null;
     onUpdate();
@@ -101,6 +107,7 @@ export async function runResumeUnderstanding({ onUpdate = () => {} } = {}) {
   const existing = resumeUnderstandingInFlight.get(key);
   if (existing) return existing;
 
+  const finishUsage = startUsage("resume_profile");
   const snapshot = structuredClone(live);
   const task = (async () => {
     state.resumeState.understanding = true;
@@ -114,6 +121,7 @@ export async function runResumeUnderstanding({ onUpdate = () => {} } = {}) {
       const saved = await saveResumeProfile(snapshot, profileData);
       if (!saved) return false;
       state.resumeState.data = saved;
+      finishUsage(Boolean(reusableResumeProfile(saved)));
       return Boolean(reusableResumeProfile(saved));
     } catch (error) {
       const current = state.resumeState.data;
@@ -122,6 +130,7 @@ export async function runResumeUnderstanding({ onUpdate = () => {} } = {}) {
         const saved = await saveResumeProfile(snapshot, { validResume: false });
         if (saved && state.resumeState.data?.id === snapshot.id && state.resumeState.data?.contentVersion === snapshot.contentVersion) state.resumeState.data = saved;
       }
+      finishUsage(false);
       state.resumeState.profileError = resumeProfileUserMessage(error);
       return false;
     } finally {
@@ -153,6 +162,8 @@ export async function runResumePipeline(job, { onUpdate = () => {} } = {}) {
   if (reusableAnalysis(liveJob)?.isJobDescription === false) return;
   const needJobProfile = !reusableAnalysis(liveJob) || reusableAnalysis(liveJob).isJobDescription !== true;
   const needResumeProfile = !reusableResumeProfile(state.resumeState.data);
+  if (!needJobProfile) cachedUsage("deep_analysis");
+  if (!needResumeProfile) cachedUsage("resume_profile");
   const [jobReady, resumeReady] = await Promise.all([
     needJobProfile ? runDeepAnalysis(liveJob, { onUpdate }) : Promise.resolve(true),
     needResumeProfile ? runResumeUnderstanding({ onUpdate }) : Promise.resolve(true)
@@ -167,6 +178,7 @@ export async function runResumePipeline(job, { onUpdate = () => {} } = {}) {
   if (!matchKey) return;
   requests.invalidate("resume_revision", job.id);
   requests.invalidate("greeting", job.id);
+  const finishMatchUsage = startUsage("resume_match");
   const matchTicket = requests.start("resume_match", job.id, matchKey);
   onUpdate();
 
@@ -185,9 +197,12 @@ export async function runResumePipeline(job, { onUpdate = () => {} } = {}) {
       if (!stillValid(matchTicket, "resume_match", matchKey, snapshot, jobs)) return jobs;
       return jobs.map((item) => item.id === job.id ? { ...item, resumeMatch: stored, greeting: null } : item);
     });
+    if (!stillValid(matchTicket, "resume_match", matchKey, snapshot, state.jobs)) return;
+    finishMatchUsage(true);
     requests.finish(matchTicket);
     onUpdate();
   } catch (error) {
+    if (requests.isCurrent(matchTicket)) finishMatchUsage(false);
     requests.finish(matchTicket, error.message || "匹配分析失败，请重试。");
     onUpdate();
     return;
@@ -196,6 +211,7 @@ export async function runResumePipeline(job, { onUpdate = () => {} } = {}) {
   // 匹配已经成功。修改建议拥有独立 ticket / 独立状态，不再把 Match 保持在 loading。
   if (taskKey("resume_match", { job: state.jobs.find((item) => item.id === job.id), resume: state.resumeState.data }) !== matchKey) return;
   const revisionKey = `${matchKey}:revision:${metadata.resultId}`;
+  const finishRevisionUsage = startUsage("resume_revision");
   const revisionTicket = requests.start("resume_revision", job.id, revisionKey);
   onUpdate();
   try {
@@ -212,8 +228,11 @@ export async function runResumePipeline(job, { onUpdate = () => {} } = {}) {
         }
       } : item);
     });
+    if (!requests.isCurrent(revisionTicket)) return;
+    finishRevisionUsage(true);
     requests.finish(revisionTicket);
   } catch (error) {
+    if (requests.isCurrent(revisionTicket)) finishRevisionUsage(false);
     const message = error.message || "修改建议生成失败，请重新分析。";
     await updateJobs((jobs) => jobs.map((item) => item.id === job.id && item.resumeMatch?.resultId === metadata.resultId
       ? { ...item, resumeMatch: { ...item.resumeMatch, result: { ...item.resumeMatch.result, revisionError: message, revisionCompleted: false } } }
@@ -229,6 +248,7 @@ export async function runGreeting(job, options, { onUpdate = () => {} } = {}) {
   const snapshot = frozenInputs(job, options);
   const key = taskKey("greeting", snapshot);
   if (!key) return;
+  const finishUsage = startUsage("greeting");
   const ticket = requests.start("greeting", job.id, key);
   onUpdate();
   try {
@@ -241,8 +261,11 @@ export async function runGreeting(job, options, { onUpdate = () => {} } = {}) {
       if (!stillValid(ticket, "greeting", key, snapshot, jobs)) return jobs;
       return jobs.map((item) => item.id === job.id ? { ...item, greeting: { ...metadata, ...options, result } } : item);
     });
+    if (!stillValid(ticket, "greeting", key, snapshot, state.jobs)) return;
+    finishUsage(true);
     requests.finish(ticket);
   } catch (error) {
+    if (requests.isCurrent(ticket)) finishUsage(false);
     requests.finish(ticket, error.message || "开场白生成失败，请重试。");
   } finally {
     onUpdate();

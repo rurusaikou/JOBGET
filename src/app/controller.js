@@ -1,3 +1,5 @@
+import { cachedUsage } from "../shared/backend/usage.js";
+import { reusableAnalysis } from "../shared/context/cache.js";
 /**
  * App 入口编排器。
  *
@@ -24,6 +26,7 @@ function refresh() {
 }
 
 function openJobFromList(index, step, returnView = "jobs", options = {}) {
+  if (step === "analysis" && !options.analyze && reusableAnalysis(state.jobs[index])) cachedUsage("deep_analysis");
   openJob(index, step, returnView, {
     afterOpen: options.analyze ? () => startDeepAnalysis(index) : undefined
   });

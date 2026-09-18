@@ -70,6 +70,7 @@ export function isResumeRevisionRetryableError(error) {
  * API 配置缺失本身已经是可行动提示，因此允许原样展示。
  */
 export function deepAnalysisUserMessage(error) {
+  if (error?.hosted) return error.message;
   const message = String(error?.message || "");
   if (/^请先在 API 设置中/.test(message)) return message;
   if (error?.code === "AI_NETWORK_ERROR") return "连接模型服务失败，请检查网络或 API 设置后重试。";
@@ -80,6 +81,7 @@ export function deepAnalysisUserMessage(error) {
 
 export function resumeProfileUserMessage(error) {
   if (error?.reason === "invalid_resume") return "当前文档不是有效简历，请清除后上传简历。";
+  if (error?.hosted) return error.message;
   const message = String(error?.message || "");
   if (/^请先在 API 设置中/.test(message)) return message;
   if (/超过 \d+ 字/.test(message)) return message;

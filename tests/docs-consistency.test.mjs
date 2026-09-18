@@ -6,7 +6,7 @@ import { MODEL_INPUT_LIMITS, MODEL_REASONING_EFFORT, MODEL_TOKEN_LIMITS } from "
 
 const root = new URL("../", import.meta.url);
 
-test("文档与 v2.3.0 Resume Understanding / Match Pipeline 保持一致", async () => {
+test("文档与 v2.5.0 Resume Understanding / Match Pipeline 保持一致", async () => {
   const [manifestText, readme, featureSpec, aiPipeline, architecture, dataModel, codeGuide, troubleshooting] = await Promise.all([
     readFile(new URL("manifest.json", root), "utf8"),
     readFile(new URL("README.md", root), "utf8"),

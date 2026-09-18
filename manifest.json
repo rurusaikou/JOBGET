@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "JOBGET",
   "description": "Capture job descriptions, analyze fit with your resume, and generate actionable application guidance.",
-  "version": "2.3.0",
+  "version": "2.5.0",
   "minimum_chrome_version": "114",
   "action": {
     "default_title": "JOBGET",
@@ -14,7 +14,8 @@
     }
   },
   "background": {
-    "service_worker": "src/background.js"
+    "service_worker": "src/background.js",
+    "type": "module"
   },
   "side_panel": {
     "default_path": "src/popup.html"
@@ -24,7 +25,8 @@
     "downloads",
     "sidePanel",
     "scripting",
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>"

@@ -1,4 +1,5 @@
 export const apiProviderPresets = {
+  hosted: { baseUrl: "", model: "" },
   openai: {
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4.1-mini"

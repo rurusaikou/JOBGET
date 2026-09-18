@@ -2,14 +2,14 @@ import { API_KEY_SESSION_KEY, SETTINGS_KEY } from "../../shared/config/constants
 import { qs } from "../../shared/ui/dom.js";
 import { getLocal, getSession, setLocal, setSession } from "../../shared/storage/chrome-storage.js";
 import { logApiError, logApiRequest, logApiResponse } from "../../shared/ai/debug.js";
-import { responsesUrl } from "../../shared/ai/client.js";
+import { postResponses, responsesUrl } from "../../shared/ai/client.js";
 import { apiProviderPresets } from "../../shared/ai/providers.js";
 import { MODEL_TOKEN_LIMITS } from "../../shared/ai/token-limits.js";
 
 export const defaultSettings = {
-  provider: "openai",
-  baseUrl: "https://api.openai.com/v1",
-  model: "gpt-4.1-mini"
+  provider: "hosted",
+  baseUrl: "",
+  model: ""
 };
 
 export async function loadSettings() {
@@ -17,9 +17,10 @@ export async function loadSettings() {
   const settings = await migratePlaintextApiKey(data[SETTINGS_KEY] || defaultSettings);
   const session = await getSession({ [API_KEY_SESSION_KEY]: "" });
   qs("#apiProvider").value = normalizeProvider(settings.provider);
-  qs("#baseUrl").value = settings.baseUrl || apiProviderPresets.openai.baseUrl;
-  qs("#modelName").value = settings.model || apiProviderPresets.openai.model;
+  qs("#baseUrl").value = settings.baseUrl ?? "";
+  qs("#modelName").value = settings.model ?? "";
   qs("#apiKey").value = session[API_KEY_SESSION_KEY] || "";
+  renderProviderFields(settings.provider);
 }
 
 export async function getSettings() {
@@ -49,6 +50,16 @@ export function applyProviderPreset(provider) {
   const preset = apiProviderPresets[normalizeProvider(provider)];
   qs("#baseUrl").value = preset.baseUrl;
   qs("#modelName").value = preset.model;
+  renderProviderFields(provider);
+}
+
+export function renderProviderFields(provider) {
+  const hosted = provider === "hosted";
+  for (const id of ["#baseUrl", "#modelName", "#apiKey"]) {
+    qs(id).closest("label").hidden = hosted;
+    qs(id).disabled = hosted;
+  }
+  qs("#testApiBtn").textContent = hosted ? "测试连接" : "测试密钥";
 }
 
 function normalizeProvider(provider) {
@@ -64,6 +75,20 @@ export async function testApiKey() {
   status.className = "api-status";
   status.textContent = "正在连接模型服务...";
 
+  if (qs("#apiProvider").value === "hosted") {
+    button.disabled = true;
+    try {
+      const result = await postResponses({ label: "settings-test", settings: defaultSettings,
+        body: { messages: [{ role: "user", content: 'Return {"ok":true}' }], max_tokens: 40 }, errorPrefix: "连接失败" });
+      if (!result || result.status !== "completed") throw new Error("服务未完成连接测试，请稍后重试。");
+      status.classList.add("ok");
+      status.textContent = "JOBGET 服务连接成功，可以开始使用。";
+    } catch (error) {
+      status.classList.add("error");
+      status.textContent = error.message || "JOBGET 服务暂时不可用。";
+    } finally { button.disabled = false; }
+    return;
+  }
   if (!key || key.length < 12) {
     status.classList.add("error");
     status.textContent = "测试失败：请输入有效的 API Key。";

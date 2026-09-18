@@ -3,19 +3,18 @@ const RELIABILITY_STORAGE_KEY = "jobget.deepAnalysisReliability";
 
 installDebugApiControls();
 
-// 只记录 URL 和请求体，不记录鉴权头；请求体仍可能包含完整简历，且这里不做脱敏。
+// 调试日志同样不记录业务正文、URL、原始错误或模型输出。
 export function logApiRequest(label, { url, body }) {
   if (!isApiDebugEnabled()) return;
   console.groupCollapsed(`[JOBGET API request] ${label}`);
-  console.log("url", url);
-  console.log("body", cloneForLog(body));
+  console.log("request", { max_output_tokens: body?.max_output_tokens });
   console.groupEnd();
 }
 
 export function logApiResponse(label, payload) {
   if (!isApiDebugEnabled()) return;
   console.groupCollapsed(`[JOBGET API response] ${label}`);
-  console.log(cloneForLog(payload));
+  console.log({ status: ["completed", "incomplete", "failed"].includes(payload?.status) ? payload.status : "unknown" });
   console.groupEnd();
 }
 
@@ -27,7 +26,7 @@ export function logApiTiming(label, elapsedMs) {
 export function logApiError(label, errorPayload) {
   if (!isApiDebugEnabled()) return;
   console.groupCollapsed(`[JOBGET API error] ${label}`);
-  console.log(cloneForLog(errorPayload));
+  console.log({ status: Number(errorPayload?.status) || 0 });
   console.groupEnd();
 }
 
@@ -55,9 +54,8 @@ export function logDeepAnalysisAttemptFailure(attempt, error, details = {}) {
   if (!isApiDebugEnabled()) return;
   console.groupCollapsed(`[JOBGET reliability] deep-analysis ${attempt} failed`);
   console.log("code", error?.code || error?.name || "unknown");
-  console.log("reason", error?.reason || "unknown");
-  console.log("message", error?.message || "");
-  console.log("details", cloneForLog({ ...details, errorDetails: error?.details || null }));
+  console.log("reason", ["max_output_tokens", "incomplete_json", "empty_output"].includes(error?.reason) ? error.reason : "unknown");
+  console.log("inputChars", Number(details.inputChars) || 0);
   console.groupEnd();
 }
 

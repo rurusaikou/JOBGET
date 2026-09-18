@@ -1,3 +1,4 @@
+import { startUsage, trackUsage } from "../../shared/backend/usage.js";
 /**
  * 岗位池交互：提取、搜索、收藏、导出、清空以及岗位卡片事件。
  * Controller 只连接 DOM、State 与业务动作，不包含 Prompt / Provider 细节。
@@ -79,7 +80,7 @@ function bindJobCardActions() {
 export async function toggleStar(index) {
   const target = state.jobs[index];
   if (!target) return;
-  await updateJobs((jobs) => jobs.map((job) => job.id === target.id ? { ...job, starred: !job.starred } : job));
+  await trackUsage("favorite", () => updateJobs((jobs) => jobs.map((job) => job.id === target.id ? { ...job, starred: !job.starred } : job)));
   actions.refresh();
 }
 
@@ -112,10 +113,12 @@ export function bindJobsEvents() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (saving) return;
+    const finishUsage = startUsage("jd_manual");
     let job;
     try {
       job = createManualJob(Object.fromEntries(new FormData(form)));
     } catch (error) {
+      finishUsage(false);
       description.setCustomValidity(error.message);
       description.reportValidity();
       return;
@@ -132,9 +135,11 @@ export function bindJobsEvents() {
         return result.jobs;
       });
       if (!result.added) {
+        finishUsage(true);
         qs("#manualError").textContent = "已存在相同 JD，未重复保存";
         return;
       }
+      finishUsage(true);
       state.navigation.selectedJob = state.jobs.length - 1;
       state.navigation.search = "";
       qs("#jobSearch").value = "";
@@ -144,6 +149,7 @@ export function bindJobsEvents() {
       setStatus("手动添加成功，已保存到岗位池");
       qs(`#jobList [data-job="${state.navigation.selectedJob}"]`)?.scrollIntoView({ block: "nearest" });
     } catch (error) {
+      finishUsage(false);
       qs("#manualError").textContent = error.message || "添加失败，请重试";
     } finally {
       saving = false;
@@ -155,6 +161,7 @@ export function bindJobsEvents() {
   qs("#extractBtn").addEventListener("click", async () => {
     qs("#extractBtn").disabled = true;
     setStatus("正在提取当前页面...");
+    const finishUsage = startUsage("jd_extract");
     try {
       const job = await extractFromCurrentTab();
       let result;
@@ -162,10 +169,12 @@ export function bindJobsEvents() {
         result = appendUniqueJob(jobs, job);
         return result.jobs;
       });
+      finishUsage(true);
       if (result.added) state.navigation.selectedJob = state.jobs.length - 1;
       actions.refresh();
       setStatus(result.added ? "已保存到岗位池" : "已存在相同 JD，未重复保存");
     } catch (error) {
+      finishUsage(false);
       setStatus(error.message || "提取失败");
     } finally {
       qs("#extractBtn").disabled = false;

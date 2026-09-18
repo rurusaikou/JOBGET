@@ -1,3 +1,5 @@
+import { AI_MODULES, backendUrl } from "../backend/config.js";
+import { getInstallationId } from "../backend/usage.js";
 /**
  * Responses API 适配层。
  *
@@ -8,6 +10,7 @@ import { logApiError, logApiRequest, logApiResponse, logApiTiming } from "./debu
 import { AiApiError, AiNetworkError, AiResponseIncompleteError } from "./errors.js";
 
 export function validateModelSettings(settings) {
+  if (settings.provider === "hosted") { backendUrl("/api/ai"); return; }
   if (!settings.apiKey || settings.apiKey.trim().length < 12) throw new Error(`请先在 API 设置中填写有效的 API Key。`);
   if (!settings.baseUrl || !/^https:\/\//i.test(settings.baseUrl)) throw new Error("请先在 API 设置中填写 https:// 开头的 Base URL。");
   if (!settings.model || !settings.model.trim()) throw new Error("请先在 API 设置中填写模型名称。");
@@ -16,6 +19,7 @@ export function validateModelSettings(settings) {
 export async function postResponses({ label, settings, body, errorPrefix }) {
   const startedAt = performance.now();
   let request = buildResponsesRequest(settings, body);
+  request.module = AI_MODULES[label.split(":")[0]];
   logApiRequest(label, request);
 
   let response;
@@ -51,6 +55,12 @@ export async function postResponses({ label, settings, body, errorPrefix }) {
     }
     logApiTiming(label, performance.now() - startedAt);
     logApiError(label, { status: response.status, body: message });
+    if (settings.provider === "hosted") {
+      const text = response.status === 429 ? "今日免费额度已用完或请求过于频繁，请稍后再试。" : "JOBGET 服务暂时不可用，请稍后重试。";
+      const error = new AiApiError(text, { status: response.status });
+      error.hosted = true;
+      throw error;
+    }
     throw new AiApiError(message ? `${errorPrefix}：${message.slice(0, 120)}` : `${errorPrefix}：API 调用失败。`, {
       status: response.status,
       details: { body: message.slice(0, 500) }
@@ -64,6 +74,14 @@ export async function postResponses({ label, settings, body, errorPrefix }) {
 }
 
 async function sendRequest(request, settings) {
+  if (settings.provider === "hosted") {
+    const { model: _model, ...body } = request.body;
+    return fetch(backendUrl("/api/ai"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ installation_id: await getInstallationId(), module: request.module, request: body }),
+      signal: AbortSignal.timeout(130000)
+    });
+  }
   return fetch(request.url, {
     method: "POST",
     headers: {
@@ -88,6 +106,9 @@ function handleResponsesPayload(payload, errorPrefix, label) {
     logApiError(label, { type: "incomplete", reason, ...details });
     throw new AiResponseIncompleteError(`${errorPrefix}：模型返回未完成。`, { reason, details });
   }
+  if (payload?.error || (payload?.status && payload.status !== "completed")) {
+    throw new AiApiError(`${errorPrefix}：模型未完成请求，请重试。`);
+  }
   return payload;
 }
 
@@ -99,7 +120,7 @@ export function responsesUrl(baseUrl) {
 
 function buildResponsesRequest(settings, body) {
   return {
-    url: responsesUrl(settings.baseUrl),
+    url: settings.provider === "hosted" ? backendUrl("/api/ai") : responsesUrl(settings.baseUrl),
     body: normalizeResponsesBody(body)
   };
 }

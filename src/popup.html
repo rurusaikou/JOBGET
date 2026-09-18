@@ -287,13 +287,15 @@
         <div class="view-title">
           <div>
             <h1>API 设置</h1>
-            <p>配置支持 Responses API 的模型服务</p>
+            <p>默认使用 JOBGET 服务，无需配置密钥</p>
           </div>
         </div>
+        <p class="note">岗位、简历和分析结果保存在本地。使用托管 AI 时，必要文本会经 JOBGET 服务临时转发给模型；服务端不保存业务内容。仅记录匿名安装实例及模块使用、成功、失败次数，并保留模型调用的 Token、耗时等成本统计。</p>
         <form id="apiForm" class="settings-form">
           <label>
             <span>服务商</span>
             <select id="apiProvider">
+              <option value="hosted">JOBGET 托管服务（推荐）</option>
               <option value="openai">OpenAI</option>
               <option value="deepseek">DeepSeek</option>
               <option value="custom">自定义 Responses API</option>

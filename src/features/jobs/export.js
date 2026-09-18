@@ -1,3 +1,4 @@
+import { trackUsage } from "../../shared/backend/usage.js";
 import { normalizeTransferableMatch, normalizeRevision } from "../../shared/context/match-results.js";
 import { hiddenRequirementsToText } from "../../shared/context/hidden-requirements.js";
 import { flashButton } from "../../shared/ui/dom.js";
@@ -12,8 +13,10 @@ export async function exportJobs(jobs, button, emptyText, resume) {
   }
 
   const date = new Date().toISOString().slice(0, 10);
-  await downloadWorkbook(jobs, `JOBGET-${date}.xlsx`, resume);
-  flashButton(button, "已导出");
+  try {
+    await trackUsage("excel_export", () => downloadWorkbook(jobs, `JOBGET-${date}.xlsx`, resume));
+    flashButton(button, "已导出");
+  } catch { flashButton(button, "导出失败，请重试"); }
 }
 
 export function jobRows(jobs, resume) {

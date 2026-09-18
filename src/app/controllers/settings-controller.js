@@ -12,6 +12,6 @@ export function bindSettingsEvents() {
     event.preventDefault();
     await saveSettings();
     qs("#apiStatus").className = "api-status ok";
-    qs("#apiStatus").textContent = "非敏感配置已保存，API Key 已保存到当前浏览器会话。";
+    qs("#apiStatus").textContent = qs("#apiProvider").value === "hosted" ? "已使用 JOBGET 托管服务，无需填写密钥。" : "非敏感配置已保存，API Key 已保存到当前浏览器会话。";
   });
 }

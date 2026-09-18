@@ -1,3 +1,4 @@
+import { startUsage } from "../../shared/backend/usage.js";
 import { qs } from "../../shared/ui/dom.js";
 import { structureResumeText } from "./extractor.js";
 import { parseResumeFile } from "./parser.js";
@@ -8,6 +9,7 @@ const EMPTY_RESUME_MESSAGE = "当前还没有简历。支持 PDF / DOCX，提取
 
 // 返回 true 只表示本地解析及保存成功；Controller 随后启动 Resume Understanding，不自动 Match。
 export async function handleResumeFile(state, file, callbacks) {
+  const finishUsage = startUsage("resume_import");
   const input = qs("#resumeFile");
   qs("#resumeStatus").textContent = `正在解析：${file.name}...`;
   input.disabled = true;
@@ -23,8 +25,10 @@ export async function handleResumeFile(state, file, callbacks) {
     });
     state.resumeState.data = await setResume(resume);
     markResumeReady(state, file.name, callbacks);
+    finishUsage(!resumeBlockingMessage(state.resumeState.data));
     return !resumeBlockingMessage(state.resumeState.data);
   } catch (error) {
+    finishUsage(false);
     state.resumeState.uploaded = Boolean(state.resumeState.data);
     qs("#resumeStatus").textContent = error.message || "简历解析失败，请换一个 PDF 或 DOCX 文件。";
     callbacks.updateMatchState();

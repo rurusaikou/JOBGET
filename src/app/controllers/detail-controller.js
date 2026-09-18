@@ -1,3 +1,4 @@
+import { cachedUsage } from "../../shared/backend/usage.js";
 /**
  * 岗位详情与 JD 深度分析交互；模型调用交给 task-runner。
  * Controller 只连接 DOM、State 与业务动作，不包含 Prompt / Provider 细节。
@@ -57,6 +58,7 @@ export function analyzeCurrentJobIfNeeded() {
   const job = currentJob();
   actions.setStep("analysis");
   if (!reusableAnalysis(job)) startDeepAnalysis();
+  else cachedUsage("deep_analysis");
 }
 
 export function bindDetailEvents() {
