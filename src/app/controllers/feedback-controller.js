@@ -31,6 +31,38 @@ export function renderFeedbackJobs() {
   if ([...select.options].some((option) => option.value === selected)) select.value = selected;
 }
 
+export function feedbackWorkflowSnapshot(job) {
+  if (!job) return {
+    deepAnalysis: null,
+    match: null,
+    revision: null,
+    greeting: null
+  };
+
+  const storedMatch = job.resumeMatch && typeof job.resumeMatch === "object" ? job.resumeMatch : null;
+  const matchResult = storedMatch?.result && typeof storedMatch.result === "object" ? storedMatch.result : null;
+  const {
+    revisions,
+    revisionError,
+    revisionCompleted,
+    revisionUsage,
+    ...matchWithoutRevision
+  } = matchResult || {};
+
+  return {
+    // 保持 chrome.storage 中的派生结果结构，连同依赖版本和 resultId 一起保存，便于复现 Bad Case。
+    deepAnalysis: job.deepAnalysis || null,
+    match: storedMatch ? { ...storedMatch, result: matchResult ? matchWithoutRevision : null } : null,
+    revision: matchResult ? {
+      revisions: Array.isArray(revisions) ? revisions : [],
+      revisionError: revisionError || null,
+      revisionCompleted: Boolean(revisionCompleted),
+      revisionUsage: revisionUsage || null
+    } : null,
+    greeting: job.greeting || null
+  };
+}
+
 async function submitFeedback(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -45,7 +77,7 @@ async function submitFeedback(event) {
     const data = new FormData(form);
     const jobId = String(data.get("jobId") || "");
     const job = jobId ? state.jobs.find((item) => item.id === jobId) : null;
-    const match = job?.resumeMatch?.result || null;
+    const snapshot = feedbackWorkflowSnapshot(job);
     const payload = {
       installation_id: await getInstallationId(),
       type: String(data.get("type") || ""),
@@ -53,10 +85,10 @@ async function submitFeedback(event) {
       job_id: job?.id || null,
       job_title: job?.title || null,
       jd_content: job?.description || null,
-      deep_analysis_result: job?.deepAnalysis || null,
-      match_result: match ? { ...match, revisions: undefined, revisionError: undefined, revisionCompleted: undefined, revisionUsage: undefined } : null,
-      revision_result: match?.revisionCompleted ? (match.revisions || []) : null,
-      greeting_result: job?.greeting?.result || null
+      deep_analysis_result: snapshot.deepAnalysis,
+      match_result: snapshot.match,
+      revision_result: snapshot.revision,
+      greeting_result: snapshot.greeting
     };
     const response = await fetch(backendUrl("/api/feedback"), {
       method: "POST",

@@ -25,7 +25,7 @@ export function buildTaskContext({ task, job, resume, tone = "natural", maxChars
     const jd = getJobSummary(job);
     const resumeProfile = reusableResumeProfile(resume);
     // Match 两侧都只消费已经完成的 Understanding 结果：Job Profile × Resume Profile。
-    // Raw JD / Raw Resume 都不再作为正常 Match fallback，避免把理解职责重新塞给 low reasoning 的 Match。
+    // Raw JD / Raw Resume 都不再作为正常 Match fallback，避免把理解职责重新塞给已关闭额外 reasoning 的 Match。
     if (!jd.analysis?.coreRequirements.length || !jd.analysis?.essence.length) {
       throw new Error("岗位深度分析尚未完成，请稍后重试。");
     }

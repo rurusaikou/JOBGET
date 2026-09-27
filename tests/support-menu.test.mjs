@@ -56,10 +56,46 @@ test("反馈可提交关联岗位工作流快照", async () => {
   assert.match(controller, /感谢反馈，我们已收到。/);
   assert.match(controller, /job\?\.description/);
   assert.ok(!controller.includes("resumeState"));
-  assert.match(controller, /job\?\.deepAnalysis/);
+  assert.match(controller, /deep_analysis_result: snapshot\.deepAnalysis/);
   assert.match(css, /\.feedback-types\s*\{[\s\S]*?grid-template-columns: repeat\(2/);
   assert.match(css, /\.feedback-content textarea\s*\{[\s\S]*?min-height: 96px/);
   assert.match(css, /\.feedback-submit\s*\{[\s\S]*?width: 100%/);
+});
+
+test("反馈快照按浏览器存储层级拆分 Match 与 Revision", async () => {
+  const { feedbackWorkflowSnapshot } = await import("../src/app/controllers/feedback-controller.js");
+  const job = {
+    deepAnalysis: { resultId: "analysis-1", essence: ["岗位本质"] },
+    resumeMatch: {
+      resultId: "match-1",
+      key: "dependency-key",
+      result: {
+        level: "高度匹配",
+        reason: "证据充分",
+        revisions: [{ summary: "突出成果" }],
+        revisionError: "",
+        revisionCompleted: true,
+        revisionUsage: { totalTokens: 12 }
+      }
+    },
+    greeting: { resultId: "greeting-1", result: { greeting: "您好" } }
+  };
+
+  assert.deepEqual(feedbackWorkflowSnapshot(job), {
+    deepAnalysis: job.deepAnalysis,
+    match: {
+      resultId: "match-1",
+      key: "dependency-key",
+      result: { level: "高度匹配", reason: "证据充分" }
+    },
+    revision: {
+      revisions: [{ summary: "突出成果" }],
+      revisionError: null,
+      revisionCompleted: true,
+      revisionUsage: { totalTokens: 12 }
+    },
+    greeting: job.greeting
+  });
 });
 
 test("岗位分析状态卡在不同宽度保持指定对齐", async () => {
