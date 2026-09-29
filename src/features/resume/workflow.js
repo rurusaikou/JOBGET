@@ -18,6 +18,7 @@ export async function handleResumeFile(state, file, callbacks) {
   qs("#resumeStatus").textContent = `正在解析：${file.name}...`;
   input.disabled = true;
   state.resumeState.parsing = true;
+  state.resumeState.uploadError = null;
   state.resumeState.profileError = null;
   callbacks.updateMatchState();
 
@@ -28,13 +29,15 @@ export async function handleResumeFile(state, file, callbacks) {
       fileType: parsed.fileType
     });
     state.resumeState.data = await setResume(resume);
+    state.resumeState.uploadError = null;
     markResumeReady(state, file.name, callbacks);
     finishUsage(!resumeBlockingMessage(state.resumeState.data));
     return !resumeBlockingMessage(state.resumeState.data);
   } catch (error) {
     finishUsage(false);
     state.resumeState.uploaded = Boolean(state.resumeState.data);
-    qs("#resumeStatus").textContent = error.message || "简历解析失败，请换一个 PDF 或 DOCX 文件。";
+    // 错误必须进入 State；直接写 DOM 会被紧随其后的全局 refresh 用默认文案覆盖。
+    state.resumeState.uploadError = error.message || "简历解析失败，请换一个 PDF 或 DOCX 文件。";
     callbacks.updateMatchState();
     return false;
   } finally {
@@ -48,6 +51,7 @@ export async function handleResumeFile(state, file, callbacks) {
 
 // 恢复时只加载本地简历；失效或缺失的 Profile 留待用户发起 Match 时补齐。
 export async function restoreResume(state, callbacks) {
+  state.resumeState.uploadError = null;
   state.resumeState.data = await getResume();
   if (!state.resumeState.data) {
     renderEmptyResume();
@@ -68,6 +72,7 @@ export async function clearCurrentResume(state, callbacks) {
     state.resumeState.data = await clearResume();
     state.resumeState.uploaded = false;
     state.resumeState.understanding = false;
+    state.resumeState.uploadError = null;
     state.resumeState.profileError = null;
     renderEmptyResume();
     callbacks.setStep("match");
@@ -82,6 +87,12 @@ export async function clearCurrentResume(state, callbacks) {
 
 export function renderResumeStatus(state) {
   const resume = state.resumeState.data;
+  const status = qs("#resumeStatus");
+  status.classList.toggle("error", Boolean(state.resumeState.uploadError || resumeBlockingMessage(resume)));
+  if (state.resumeState.uploadError) {
+    status.textContent = state.resumeState.uploadError;
+    return;
+  }
   if (!resume) {
     renderEmptyResume();
     return;
@@ -129,5 +140,7 @@ function parsedResumeStatus(label, resume) {
 }
 
 function renderEmptyResume() {
-  qs("#resumeStatus").textContent = EMPTY_RESUME_MESSAGE;
+  const status = qs("#resumeStatus");
+  status.classList.remove("error");
+  status.textContent = EMPTY_RESUME_MESSAGE;
 }

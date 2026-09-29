@@ -16,7 +16,7 @@ export const AI_MODULES = Object.freeze({
 export function backendUrl(path) {
   const url = new URL(BACKEND_URL);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) {
-    throw new Error("JOBGET 服务地址配置无效，请联系维护者。");
+    throw new Error("RoleMI 服务地址配置无效，请联系维护者。");
   }
   return `${url.href.replace(/\/$/, "")}${path}`;
 }

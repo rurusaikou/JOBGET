@@ -73,7 +73,7 @@ export async function testApiKey() {
     });
     if (JSON.parse(extractResponseContent(result)).ok !== true) throw new Error("服务未返回有效的 Responses API 测试结果。");
     status.classList.add("ok");
-    status.textContent = settings.provider === "hosted" ? "JOBGET 服务连接成功。" : "Responses API 连接测试通过。";
+    status.textContent = settings.provider === "hosted" ? "RoleMI 服务连接成功。" : "Responses API 连接测试通过。";
   } catch (error) {
     status.classList.add("error");
     status.textContent = error.message || "连接测试失败。";

@@ -28,7 +28,7 @@ export async function extractFromCurrentTab() {
     throw new Error(UNSUPPORTED_PAGE_MESSAGE);
   }
 
-  const response = await sendMessageWithInjection(tab.id, { type: "JDGET_EXTRACT" });
+  const response = await sendMessageWithInjection(tab.id, { type: "ROLEMI_EXTRACT" });
   if (!response || !response.ok) throw new Error((response && response.message) || "页面没有返回 JD 信息");
   return response.job;
 }

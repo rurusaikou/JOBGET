@@ -2,34 +2,34 @@
  * 本地 AI 调试与可靠性计数：提供日志开关、耗时记录和深度分析重试统计。
  * 不打印业务正文；本地计数与远端匿名使用事件是两条独立链路。
  */
-const DEBUG_API_STORAGE_KEY = "jobget.debugApi";
-const RELIABILITY_STORAGE_KEY = "jobget.deepAnalysisReliability";
+const DEBUG_API_STORAGE_KEY = "rolemi.debugApi";
+const RELIABILITY_STORAGE_KEY = "rolemi.deepAnalysisReliability";
 
 installDebugApiControls();
 
 // 调试日志同样不记录业务正文、URL、原始错误或模型输出。
 export function logApiRequest(label, { url, body }) {
   if (!isApiDebugEnabled()) return;
-  console.groupCollapsed(`[JOBGET API request] ${label}`);
+  console.groupCollapsed(`[RoleMI API request] ${label}`);
   console.log("request", { max_output_tokens: body?.max_output_tokens });
   console.groupEnd();
 }
 
 export function logApiResponse(label, payload) {
   if (!isApiDebugEnabled()) return;
-  console.groupCollapsed(`[JOBGET API response] ${label}`);
+  console.groupCollapsed(`[RoleMI API response] ${label}`);
   console.log({ status: ["completed", "incomplete", "failed"].includes(payload?.status) ? payload.status : "unknown" });
   console.groupEnd();
 }
 
 export function logApiTiming(label, elapsedMs) {
   if (!isApiDebugEnabled()) return;
-  console.info(`[JOBGET API timing] ${label}: ${Math.round(Number(elapsedMs) || 0)} ms`);
+  console.info(`[RoleMI API timing] ${label}: ${Math.round(Number(elapsedMs) || 0)} ms`);
 }
 
 export function logApiError(label, errorPayload) {
   if (!isApiDebugEnabled()) return;
-  console.groupCollapsed(`[JOBGET API error] ${label}`);
+  console.groupCollapsed(`[RoleMI API error] ${label}`);
   console.log({ status: Number(errorPayload?.status) || 0 });
   console.groupEnd();
 }
@@ -49,14 +49,14 @@ export function recordDeepAnalysisReliability(event) {
   stats.updatedAt = new Date().toISOString();
   writeReliabilityStats(stats);
   if (isApiDebugEnabled()) {
-    console.info(`[JOBGET reliability] deep-analysis ${event}`, cloneForLog(stats));
+    console.info(`[RoleMI reliability] deep-analysis ${event}`, cloneForLog(stats));
   }
 }
 
 /** 记录某次 Deep Analysis attempt 的技术失败原因；仅 Debug 开启时输出。 */
 export function logDeepAnalysisAttemptFailure(attempt, error, details = {}) {
   if (!isApiDebugEnabled()) return;
-  console.groupCollapsed(`[JOBGET reliability] deep-analysis ${attempt} failed`);
+  console.groupCollapsed(`[RoleMI reliability] deep-analysis ${attempt} failed`);
   console.log("code", error?.code || error?.name || "unknown");
   console.log("reason", ["max_output_tokens", "incomplete_json", "empty_output"].includes(error?.reason) ? error.reason : "unknown");
   console.log("inputChars", Number(details.inputChars) || 0);
@@ -74,19 +74,19 @@ export function resetDeepAnalysisReliabilityStats() {
 }
 
 function installDebugApiControls() {
-  if (typeof window === "undefined" || window.JOBGET_DEBUG_API) return;
-  window.JOBGET_DEBUG_API = {
+  if (typeof window === "undefined" || window.ROLEMI_DEBUG_API) return;
+  window.ROLEMI_DEBUG_API = {
     enable() {
       window.localStorage.setItem(DEBUG_API_STORAGE_KEY, "true");
-      console.info("[JOBGET API debug] enabled");
+      console.info("[RoleMI API debug] enabled");
     },
     disable() {
       window.localStorage.removeItem(DEBUG_API_STORAGE_KEY);
-      console.info("[JOBGET API debug] disabled");
+      console.info("[RoleMI API debug] disabled");
     },
     status() {
       const enabled = isApiDebugEnabled();
-      console.info(`[JOBGET API debug] ${enabled ? "enabled" : "disabled"}`);
+      console.info(`[RoleMI API debug] ${enabled ? "enabled" : "disabled"}`);
       return enabled;
     },
     stats() {
@@ -96,11 +96,11 @@ function installDebugApiControls() {
     },
     resetStats() {
       const stats = resetDeepAnalysisReliabilityStats();
-      console.info("[JOBGET reliability] deep-analysis stats reset");
+      console.info("[RoleMI reliability] deep-analysis stats reset");
       return stats;
     }
   };
-  console.info("[JOBGET API debug] run JOBGET_DEBUG_API.enable() to log API requests and responses.");
+  console.info("[RoleMI API debug] run ROLEMI_DEBUG_API.enable() to log API requests and responses.");
 }
 
 function isApiDebugEnabled() {

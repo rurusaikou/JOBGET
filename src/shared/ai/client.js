@@ -56,7 +56,7 @@ export async function postResponses({ label, settings, body, errorPrefix }) {
     logApiTiming(label, performance.now() - startedAt);
     logApiError(label, { status: response.status, body: message });
     if (settings.provider === "hosted") {
-      const text = response.status === 429 ? "今日免费额度已用完或请求过于频繁，请稍后再试。" : "JOBGET 服务暂时不可用，请稍后重试。";
+      const text = response.status === 429 ? "今日免费额度已用完或请求过于频繁，请稍后再试。" : "RoleMI 服务暂时不可用，请稍后重试。";
       const error = new AiApiError(text, { status: response.status });
       error.hosted = true;
       throw error;

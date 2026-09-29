@@ -25,7 +25,7 @@ test("extension defaults to hosted and honors saved custom settings", async () =
   installStorage();
   assert.equal((await getSettings()).provider, "hosted");
   assert.doesNotThrow(() => validateModelSettings(defaultSettings));
-  installStorage({ "jobget.settings": { provider: "deepseek", model: "old-model", baseUrl: "https://provider.test" } });
+  installStorage({ "rolemi.settings": { provider: "deepseek", model: "old-model", baseUrl: "https://provider.test" } });
   assert.equal((await getSettings()).provider, "custom");
 });
 test("hosted requests use envelope without keys, model or provider URL", async () => {
@@ -51,24 +51,24 @@ test("installation generation is serialized across concurrent panel requests", a
   const { data } = mockChrome();
   const ids = await Promise.all(Array.from({ length: 20 }, () => installationId()));
   assert.equal(new Set(ids).size, 1);
-  assert.equal(ids[0], data["jobget.installationId"]);
+  assert.equal(ids[0], data["rolemi.installationId"]);
 });
 test("offline event queue survives failure and replays the exact receipt", async () => {
   const { data } = mockChrome();
   const payload = { execution_id: exec, module: "excel_export", event: "success", date: new Date().toISOString().slice(0, 10) };
   await Promise.all([enqueueUsage(payload), enqueueUsage(payload)]);
-  assert.equal(data["jobget.usageQueue"].length, 1);
+  assert.equal(data["rolemi.usageQueue"].length, 1);
   globalThis.fetch = async () => { throw new Error("offline"); };
   await flushUsage();
-  assert.equal(data["jobget.usageQueue"].length, 1);
+  assert.equal(data["rolemi.usageQueue"].length, 1);
   globalThis.fetch = async (_, options) => {
-    assert.deepEqual(JSON.parse(options.body).events, data["jobget.usageQueue"]);
+    assert.deepEqual(JSON.parse(options.body).events, data["rolemi.usageQueue"]);
     return Response.json({ ok: true });
   };
   await flushUsage();
-  assert.deepEqual(data["jobget.usageQueue"], []);
+  assert.deepEqual(data["rolemi.usageQueue"], []);
   await enqueueUsage({ ...payload, filename: "private.pdf" });
-  assert.deepEqual(data["jobget.usageQueue"], []);
+  assert.deepEqual(data["rolemi.usageQueue"], []);
 });
 test("module operation settles once; cache counts success; reporting errors don't fail business", async () => {
   const { messages } = mockChrome();
@@ -91,14 +91,14 @@ test("AI compact retry produces two calls but one module use and one terminal ou
   const [job] = await setJobs([legacyJob]);
   await trackUsage("deep_analysis", () => analyzeJobWithAi(job, { ...defaultSettings, model: "" }));
   assert.equal(attempts, 2);
-  const usage = messages.filter(message => message.type === "jobget.usage");
+  const usage = messages.filter(message => message.type === "rolemi.usage");
   assert.deepEqual(usage.map(message => message.payload.event), ["start", "success"]);
 });
 
 test("已保存自定义服务优先且保留会话密钥", async () => {
   const saved = { provider: "custom", baseUrl: "https://provider.test/v1", model: "saved-model" };
-  const storage = installStorage({ "jobget.settings": saved });
+  const storage = installStorage({ "rolemi.settings": saved });
   assert.equal((await getSettings()).provider, "custom");
-  assert.deepEqual(storage.read("jobget.settings"), saved);
+  assert.deepEqual(storage.read("rolemi.settings"), saved);
   assert.deepEqual(await getSavedSettings(), { ...saved, apiKey: "test-api-key-not-real" });
 });

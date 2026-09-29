@@ -37,7 +37,7 @@ async function matchedFixture() {
 }
 
 test('迁移落盘并保留历史结果，旧结果不自动复用', async () => {
-  installStorage({ 'jdget.jobs': [{ ...legacyJob, deepAnalysis: analysisResult }] });
+  installStorage({ 'rolemi.jobs': [{ ...legacyJob, deepAnalysis: analysisResult }] });
   const [first] = await getJobs();
   const [second] = await getJobs();
   assert.equal(first.id, second.id);

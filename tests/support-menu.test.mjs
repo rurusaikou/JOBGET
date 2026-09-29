@@ -42,6 +42,7 @@ test("反馈可提交关联岗位工作流快照", async () => {
   assert.match(html, /id="feedbackContent"[^>]*maxlength="500"/);
   assert.match(html, /id="feedbackJob"[^>]*name="jobId"/);
   assert.match(html, /不关联岗位/);
+  assert.match(html, /相关岗位（可选）<\/strong><small class="feedback-job-hint">[\s\S]*?<\/small><select id="feedbackJob"/);
   assert.match(html, /value="analysis_inaccurate"/);
   assert.ok(!html.includes("feedbackFile"));
   assert.ok(!html.includes("feedbackIncludeContext"));
@@ -59,6 +60,7 @@ test("反馈可提交关联岗位工作流快照", async () => {
   assert.match(controller, /deep_analysis_result: snapshot\.deepAnalysis/);
   assert.match(css, /\.feedback-types\s*\{[\s\S]*?grid-template-columns: repeat\(2/);
   assert.match(css, /\.feedback-content textarea\s*\{[\s\S]*?min-height: 96px/);
+  assert.match(css, /\.feedback-job-hint\s*\{[\s\S]*?color: var\(--muted\)[\s\S]*?font-size: 12px/);
   assert.match(css, /\.feedback-submit\s*\{[\s\S]*?width: 100%/);
 });
 

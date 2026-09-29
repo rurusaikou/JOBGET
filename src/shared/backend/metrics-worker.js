@@ -3,8 +3,8 @@
  * 限制事件年龄和队列容量；不可恢复批次移除，临时失败保留待重发。
  */
 import { backendUrl, USAGE_MODULES } from "./config.js";
-const ID_KEY = "jobget.installationId";
-const QUEUE_KEY = "jobget.usageQueue";
+const ID_KEY = "rolemi.installationId";
+const QUEUE_KEY = "rolemi.usageQueue";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let serial = Promise.resolve();
 let flushing;

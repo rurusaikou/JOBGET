@@ -10,7 +10,7 @@ export function memoryStorage(seed = {}) {
 
 export function installStorage(seed = {}) {
   globalThis.localStorage = memoryStorage(seed);
-  globalThis.sessionStorage = memoryStorage({ 'jobget.apiKey.session': 'test-api-key-not-real' });
+  globalThis.sessionStorage = memoryStorage({ 'rolemi.apiKey.session': 'test-api-key-not-real' });
   globalThis.window = { localStorage };
   return localStorage;
 }

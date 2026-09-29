@@ -27,7 +27,7 @@ test("自有 JavaScript 源码在首个语句前保留模块说明", async () =>
 });
 
 test("文档与 v2.7.0 Resume Understanding / Match Pipeline 保持一致", async () => {
-  const [manifestText, readme, changelog, featureSpec, aiPipeline, architecture, dataModel, codeGuide, troubleshooting] = await Promise.all([
+  const [manifestText, readme, changelog, featureSpec, aiPipeline, architecture, dataModel, codeGuide, troubleshooting, popup, debugSource, xlsxSource] = await Promise.all([
     readFile(new URL("manifest.json", root), "utf8"),
     readFile(new URL("README.md", root), "utf8"),
     readFile(new URL("docs/CHANGELOG.md", root), "utf8"),
@@ -36,11 +36,22 @@ test("文档与 v2.7.0 Resume Understanding / Match Pipeline 保持一致", asyn
     readFile(new URL("docs/architecture.md", root), "utf8"),
     readFile(new URL("docs/data-model.md", root), "utf8"),
     readFile(new URL("docs/code-guide.md", root), "utf8"),
-    readFile(new URL("docs/troubleshooting.md", root), "utf8")
+    readFile(new URL("docs/troubleshooting.md", root), "utf8"),
+    readFile(new URL("src/popup.html", root), "utf8"),
+    readFile(new URL("src/shared/ai/debug.js", root), "utf8"),
+    readFile(new URL("src/xlsx.js", root), "utf8")
   ]);
   const manifest = JSON.parse(manifestText);
   const packageInfo = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.equal(packageInfo.version, manifest.version);
+  assert.equal(manifest.name, "RoleMI");
+  assert.equal(manifest.action.default_title, "RoleMI");
+  assert.equal(packageInfo.name, "rolemi");
+  assert.match(readme, /^# RoleMI$/m);
+  assert.match(popup, /<title>RoleMI<\/title>/);
+  assert.match(popup, />RoleMI<\/strong>/);
+  assert.match(debugSource, /window\.ROLEMI_DEBUG_API/);
+  assert.match(xlsxSource, /window\.ROLEMI_XLSX/);
 
   assert.ok(!readme.includes("CHANGELOG"), "公开 README 不应引用未公开的版本记录");
   assert.ok(!readme.includes("docs/"), "公开 README 不应引用未公开的 docs 文档");
@@ -88,7 +99,7 @@ test("文档与 v2.7.0 Resume Understanding / Match Pipeline 保持一致", asyn
   assert.match(featureSpec, /优先直连用户的 Responses API/);
   assert.match(featureSpec, /Resume Profile 不保存姓名、手机号、邮箱/);
   assert.match(aiPipeline, /Resume Profile 不保存姓名、手机号、邮箱/);
-  assert.match(troubleshooting, /jobget\.resume\.profile\.projects/);
+  assert.match(troubleshooting, /rolemi\.resume\.profile\.projects/);
 
   // README 保持产品化，不暴露内部版本键细节。
   for (const implementationTerm of ["CONTEXT_VERSION", "RESUME_PROFILE_VERSION", "previous_response_id", "contextChars"]) {

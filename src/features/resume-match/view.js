@@ -7,6 +7,7 @@ import { escapeHtml, qs } from "../../shared/ui/dom.js";
 
 export function renderResumeMatchView(state) {
   const invalidResume = Boolean(resumeBlockingMessage(state.resumeState.data));
+  const uploadError = state.resumeState.uploadError || "";
   const match = state.tasks.resumeMatch;
   const revision = state.tasks.resumeRevision;
   const result = match.result;
@@ -31,6 +32,12 @@ export function renderResumeMatchView(state) {
 
   qs("#toRevisionBtn").disabled = invalidResume || match.status !== "success";
   qs("#toGreetingBtn").disabled = invalidResume || match.status !== "success";
+  if (uploadError && resumeUploaded) {
+    setMatchDetailsVisible(false);
+    renderShell("上传失败", uploadError);
+    clearMatchDetails();
+    return;
+  }
   if (invalidResume) {
     setMatchDetailsVisible(false);
     renderShell("无法匹配", resumeBlockingMessage(state.resumeState.data));

@@ -28,7 +28,7 @@ export function createInitialState() {
       search: ""
     },
     jobs: [],
-    resumeState: { uploaded: false, parsing: false, understanding: false, profileError: null, data: null },
+    resumeState: { uploaded: false, parsing: false, understanding: false, uploadError: null, profileError: null, data: null },
     tasks: {
       deepAnalysis: createTaskState({ loadingJobId: null }),
       resumeMatch: createTaskState({ key: "" }),

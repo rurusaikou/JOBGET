@@ -824,6 +824,14 @@ ul {
 .feedback-types input:focus-visible + span { outline: 2px solid #b9d2ff; outline-offset: 1px; }
 
 .feedback-content, .feedback-job { display: grid; }
+.feedback-job > strong { margin-bottom: 5px; }
+.feedback-job-hint {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
 .feedback-job select { width: 100%; height: 42px; border: 1px solid #ced8e6; border-radius: 8px; padding: 0 11px; color: var(--text); background: #fff; }
 
 .feedback-content textarea {
@@ -1075,6 +1083,10 @@ ul {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.6;
+}
+
+.upload-card p.error {
+  color: #b42318;
 }
 
 .upload-btn {

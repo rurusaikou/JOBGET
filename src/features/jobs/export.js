@@ -18,7 +18,7 @@ export async function exportJobs(jobs, button, emptyText, resume) {
 
   const date = new Date().toISOString().slice(0, 10);
   try {
-    await trackUsage("excel_export", () => downloadWorkbook(jobs, `JOBGET-${date}.xlsx`, resume));
+    await trackUsage("excel_export", () => downloadWorkbook(jobs, `RoleMI-${date}.xlsx`, resume));
     flashButton(button, "已导出");
   } catch { flashButton(button, "导出失败，请重试"); }
 }
@@ -88,7 +88,7 @@ function tokenValue(value) {
 }
 
 async function downloadWorkbook(jobs, filename, resume) {
-  const blob = window.JDGET_XLSX.createWorkbookBlob(jobRows(jobs, resume), "JD信息");
+  const blob = window.ROLEMI_XLSX.createWorkbookBlob(jobRows(jobs, resume), "JD信息");
   await downloadBlob(blob, filename, true);
 }
 

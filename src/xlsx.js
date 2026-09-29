@@ -1,5 +1,5 @@
 /**
- * 本地 XLSX 写出器：将行数据编码为 XML 和 ZIP，暴露 JDGET_XLSX 接口。
+ * 本地 XLSX 写出器：将行数据编码为 XML 和 ZIP，暴露 ROLEMI_XLSX 接口。
  * 供岗位导出使用，不依赖远端服务或构建工具。
  */
 (function () {
@@ -229,7 +229,7 @@
     });
   }
 
-  window.JDGET_XLSX = {
+  window.ROLEMI_XLSX = {
     // 暴露给侧边栏面板使用。content script 不需要加载这个文件。
     createWorkbookBlob
   };

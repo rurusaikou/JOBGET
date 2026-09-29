@@ -17,8 +17,8 @@ test('保存自定义配置，清空恢复托管；Key 不长期落盘', async (
   form('https://example.test/v1', 'my-model', 'user-test-api-key');
   await saveSettings();
   assert.equal((await getSettings()).provider, 'custom');
-  assert.equal(storage.read('jobget.settings').apiKey, undefined);
-  sessionStorage.setItem('jobget.apiKey.session', '""');
+  assert.equal(storage.read('rolemi.settings').apiKey, undefined);
+  sessionStorage.setItem('rolemi.apiKey.session', '""');
   assert.throws(() => validateModelSettings({ provider: 'custom', baseUrl: 'https://example.test/v1', model: 'my-model', apiKey: '' }), /API Key/);
   assert.equal((await getSettings()).provider, 'custom');
   form();
@@ -31,7 +31,7 @@ test('部分填写和 Chat Completions 地址均不覆盖已有配置', async ()
   await assert.rejects(saveSettings(), /模型名称/);
   form('https://example.test/v1/chat/completions', 'model', 'user-test-api-key');
   await assert.rejects(saveSettings(), /仅支持 Responses API/);
-  assert.equal(storage.read('jobget.settings'), null);
+  assert.equal(storage.read('rolemi.settings'), null);
 });
 test('测试自定义 API 直连 responses，验证响应且不保存配置', async () => {
   const storage = installStorage();
@@ -50,7 +50,7 @@ test('测试自定义 API 直连 responses，验证响应且不保存配置', as
   await testApiKey();
   assert.equal(calls, 1);
   assert.match(fields['#apiStatus'].textContent, /通过/);
-  assert.equal(storage.read('jobget.settings'), null);
+  assert.equal(storage.read('rolemi.settings'), null);
   globalThis.fetch = async () => { throw new Error('offline'); };
   await testApiKey();
   assert.match(fields['#apiStatus'].textContent, /网络请求失败/);

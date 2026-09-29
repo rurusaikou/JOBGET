@@ -4,13 +4,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>JOBGET</title>
+    <title>RoleMI</title>
     <link rel="stylesheet" href="./popup.css">
   </head>
   <body>
     <aside id="plugin" class="plugin">
       <header class="plugin-header">
-        <strong><img class="logo" src="../assets/icons/logo-transparent-128.png" width="26" height="26" alt="">JOBGET</strong>
+        <strong><img class="logo" src="../assets/icons/logo-transparent-128.png" width="26" height="26" alt="">RoleMI</strong>
         <div class="header-menu-wrap">
           <button id="moreMenuBtn" class="icon-btn" type="button" title="更多" aria-label="打开更多菜单" aria-haspopup="menu" aria-expanded="false">⋮</button>
           <div id="headerMenu" class="header-menu is-hidden" role="menu">
@@ -41,7 +41,7 @@
 
         <article id="emptyPanel" class="empty-panel">
           <h2>还没有添加 JD</h2>
-          <p>可手动粘贴其他渠道的 JD，或打开 BOSS 直聘、智联招聘或猎聘的职位详情页后，JOBGET 会保存岗位字段，并生成后续分析、匹配和沟通工作流。</p>
+          <p>可手动粘贴其他渠道的 JD，或打开 BOSS 直聘、智联招聘或猎聘的职位详情页后，RoleMI 会保存岗位字段，并生成后续分析、匹配和沟通工作流。</p>
           <div class="feature-grid">
             <span>JD 结构化</span>
             <span>Excel 导出</span>
@@ -178,7 +178,7 @@
         <div id="matchStep" class="step-view">
           <article id="matchUploadPrompt" class="upload-card">
             <h2>简历上传</h2>
-            <p id="resumeStatus">当前还没有简历。支持 PDF / DOCX，提取文本不超过 4000 字；超限不进入分析。</p>
+            <p id="resumeStatus" role="status" aria-live="polite">当前还没有简历。支持 PDF / DOCX，提取文本不超过 4000 字；超限不进入分析。</p>
             <label class="upload-btn">
               上传简历
               <input id="resumeFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
@@ -316,7 +316,7 @@
             <button id="testApiBtn" type="button" class="soft-btn">测试连接</button>
             <button type="submit" class="primary">保存设置</button>
           </div>
-          <p id="apiStatus" class="api-status">仅支持 Responses API。清空配置并保存后，将恢复使用 JobGet 默认服务。</p>
+          <p id="apiStatus" class="api-status">仅支持 Responses API。清空配置并保存后，将恢复使用 RoleMI 默认服务。</p>
         </form>
       </section>
 
@@ -369,7 +369,7 @@
               <label><input type="radio" name="type" value="other"><span>其他</span></label>
             </div>
           </fieldset>
-          <label class="feedback-job" for="feedbackJob"><strong>相关岗位（可选）</strong><select id="feedbackJob" name="jobId"><option value="">不关联岗位</option></select><small>选择相关岗位后，将同时提交该岗位的 JD 及已生成的分析结果，用于定位问题和改进分析效果。不包含简历原文。</small></label>
+          <label class="feedback-job" for="feedbackJob"><strong>相关岗位（可选）</strong><small class="feedback-job-hint">选择相关岗位后，将同时提交该岗位的 JD 及已生成的分析结果，用于定位问题和改进分析效果。不包含简历原文。</small><select id="feedbackJob" name="jobId"><option value="">不关联岗位</option></select></label>
           <label class="feedback-content" for="feedbackContent"><strong>反馈内容</strong><textarea id="feedbackContent" name="content" required maxlength="500" placeholder="请描述你遇到的问题或建议…"></textarea></label>
           <p id="feedbackCount" class="feedback-count">0 / 500</p>
           <p id="feedbackStatus" class="feedback-status" role="status" aria-live="polite"></p>

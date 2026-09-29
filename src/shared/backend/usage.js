@@ -5,9 +5,9 @@
 import { USAGE_MODULES } from "./config.js";
 
 export async function getInstallationId() {
-  if (!globalThis.chrome?.runtime?.id) throw new Error("请在 JOBGET 扩展中使用托管服务。");
-  const result = await chrome.runtime.sendMessage({ type: "jobget.installation" });
-  if (!result?.installation_id) throw new Error("无法初始化 JOBGET 服务，请重新打开插件。");
+  if (!globalThis.chrome?.runtime?.id) throw new Error("请在 RoleMI 扩展中使用托管服务。");
+  const result = await chrome.runtime.sendMessage({ type: "rolemi.installation" });
+  if (!result?.installation_id) throw new Error("无法初始化 RoleMI 服务，请重新打开插件。");
   return result.installation_id;
 }
 
@@ -20,7 +20,7 @@ export function startUsage(module) {
   const send = (event) => {
     if (!globalThis.chrome?.runtime?.id) return;
     try {
-      Promise.resolve(chrome.runtime.sendMessage({ type: "jobget.usage", payload: { module, execution_id, event, date } })).catch(() => {});
+      Promise.resolve(chrome.runtime.sendMessage({ type: "rolemi.usage", payload: { module, execution_id, event, date } })).catch(() => {});
     } catch { /* 上报不得影响业务。 */ }
   };
   send("start");

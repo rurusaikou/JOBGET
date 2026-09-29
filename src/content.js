@@ -375,7 +375,7 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // 侧边栏面板通过消息调用页面提取。这里同步返回即可，因为所有读取都来自当前 DOM。
-    if (message && message.type === "JDGET_EXTRACT") {
+    if (message && message.type === "ROLEMI_EXTRACT") {
       sendResponse(extractJobResponse());
     }
   });
