@@ -107,7 +107,7 @@ test("文档与 v2.7.0 Resume Understanding / Match Pipeline 保持一致", asyn
   }
 });
 
-test("手动 JD 录入上限与表单、计数和文档保持一致", async () => {
+test("手动岗位录入上限与表单和文档保持一致且不显示计数", async () => {
   const { MANUAL_JD_MAX_LENGTH } = await import('../src/features/jobs/manual.js');
   const [html, controller, readme, spec, dataModel, product] = await Promise.all([
     'src/popup.html', 'src/app/controllers/jobs-controller.js', 'README.md',
@@ -117,9 +117,8 @@ test("手动 JD 录入上限与表单、计数和文档保持一致", async () =
   assert.ok(textarea);
   assert.ok(textarea.includes(`maxlength="${MANUAL_JD_MAX_LENGTH}"`));
   assert.match(textarea, /\brequired\b/);
-  assert.ok(html.includes(`0 / ${MANUAL_JD_MAX_LENGTH}`));
-  assert.ok(controller.includes(`0 / ${MANUAL_JD_MAX_LENGTH}`));
-  assert.ok(controller.includes('${description.value.length} / ' + MANUAL_JD_MAX_LENGTH));
+  assert.ok(!html.includes('id="manualCount"'));
+  assert.ok(!controller.includes("#manualCount"));
   assert.ok(spec.includes(`MANUAL_JD_MAX_LENGTH = ${MANUAL_JD_MAX_LENGTH}`));
   for (const doc of [readme, spec, dataModel, product]) {
     assert.ok(doc.includes(String(MANUAL_JD_MAX_LENGTH)));

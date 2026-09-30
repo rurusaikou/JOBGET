@@ -91,7 +91,6 @@ export function bindJobsEvents() {
   let saving = false;
   const resetManual = () => {
     form.reset();
-    qs("#manualCount").textContent = "0 / 1000";
     qs("#manualError").textContent = "";
     description.setCustomValidity("");
   };
@@ -107,7 +106,6 @@ export function bindJobsEvents() {
     });
   }
   description.addEventListener("input", () => {
-    qs("#manualCount").textContent = `${description.value.length} / 1000`;
     description.setCustomValidity("");
     qs("#manualError").textContent = "";
   });

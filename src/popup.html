@@ -73,13 +73,12 @@
         <div class="view-title"><div><h1>手动添加岗位</h1><p>粘贴从官网、公众号或其他渠道获取的岗位描述，添加到岗位池</p></div></div>
         <form id="manualJobForm" class="card manual-form">
           <h2>岗位信息</h2>
-          <label class="manual-field" for="manualTitle"><span>职位名称（选填）</span><input id="manualTitle" name="title" placeholder="如：AI Agent 产品经理"></label>
-          <label class="manual-field" for="manualCompany"><span>公司 / 地点（选填）</span><input id="manualCompany" name="company" placeholder="如：XX科技 · 上海"></label>
-          <label class="manual-field" for="manualExperience"><span>岗位信息（选填）</span><input id="manualExperience" name="experience" placeholder="如：经验不限 · 本科"></label>
-          <label class="manual-field" for="manualSalary"><span>薪资（选填）</span><input id="manualSalary" name="salary" placeholder="如：30-50K · 16薪"></label>
+          <label class="manual-field" for="manualTitle"><span>职位名称</span><input id="manualTitle" name="title" placeholder="如：AI Agent 产品经理"></label>
+          <label class="manual-field" for="manualCompany"><span>公司 / 地点</span><input id="manualCompany" name="company" placeholder="如：XX科技 · 上海"></label>
+          <label class="manual-field" for="manualExperience"><span>经验/ 学历</span><input id="manualExperience" name="experience" placeholder="如：经验不限 · 本科"></label>
+          <label class="manual-field" for="manualSalary"><span>薪资</span><input id="manualSalary" name="salary" placeholder="如：30-50K · 16薪"></label>
           <label for="manualDescription">岗位描述 <span class="required-mark">*</span></label>
-          <textarea id="manualDescription" name="description" required maxlength="1000" aria-describedby="manualCount manualError" placeholder="请粘贴完整的岗位描述……&#10;（支持从官网、公众号、PDF、图片文字、猎头信息等渠道复制的内容）"></textarea>
-          <p id="manualCount" class="note manual-count">0 / 1000</p>
+          <textarea id="manualDescription" name="description" required maxlength="2000" aria-describedby="manualError" placeholder="请粘贴完整的岗位描述……"></textarea>
           <p id="manualError" class="manual-error" role="alert"></p>
           <div class="manual-actions"><button id="manualCancelBtn" class="soft-btn" type="button">取消</button><button id="manualSubmitBtn" class="primary" type="submit">添加岗位</button></div>
         </form>

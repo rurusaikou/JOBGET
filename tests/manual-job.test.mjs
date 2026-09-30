@@ -6,8 +6,8 @@ import { installStorage } from './helpers.mjs';
 
 test('manual JD validates required text and length while allowing empty metadata', () => {
   assert.throws(() => createManualJob({ description: ' \n ' }), /请粘贴/);
-  assert.throws(() => createManualJob({ description: 'a'.repeat(1001) }), /1000/);
-  assert.equal(createManualJob({ description: 'a'.repeat(1000) }).description.length, 1000);
+  assert.throws(() => createManualJob({ description: 'a'.repeat(2001) }), /2000/);
+  assert.equal(createManualJob({ description: 'a'.repeat(2000) }).description.length, 2000);
   assert.equal(createManualJob({ description: ' 正文 ' }).description, '正文');
 });
 

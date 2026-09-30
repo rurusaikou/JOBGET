@@ -2055,7 +2055,6 @@ ul {
 .manual-form textarea { min-height: 150px; resize: vertical; line-height: 1.6; }
 .manual-form input:focus, .manual-form textarea:focus { outline: 2px solid #8ab4f8; outline-offset: 1px; }
 .manual-form input::placeholder, .manual-form textarea::placeholder { color: var(--muted); }
-.manual-count { text-align: right; }
 .required-mark, .manual-error { color: #c62828; }
 .manual-error { font-size: 12px; }
 .manual-actions { display: flex; justify-content: flex-end; gap: 10px; }
