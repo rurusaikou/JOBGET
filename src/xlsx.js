@@ -188,7 +188,7 @@
     // - xl/workbook.xml 声明工作表
     // - xl/_rels/workbook.xml.rels 指向 sheet1.xml
     // - xl/worksheets/sheet1.xml 保存真实表格数据
-    const safeRows = rows.length ? rows : [{ "提示": "暂无 JD 数据" }];
+    const safeRows = rows.length ? rows : [{ "提示": "暂无岗位数据" }];
     const files = [
       {
         name: "[Content_Types].xml",
@@ -209,7 +209,7 @@
       },
       {
         name: "xl/workbook.xml",
-        content: workbookXml(sheetName || "JD")
+        content: workbookXml(sheetName || "岗位")
       },
       {
         name: "xl/_rels/workbook.xml.rels",
@@ -220,7 +220,7 @@
       },
       {
         name: "xl/worksheets/sheet1.xml",
-        content: sheetXml(safeRows, sheetName || "JD")
+        content: sheetXml(safeRows, sheetName || "岗位")
       }
     ];
 

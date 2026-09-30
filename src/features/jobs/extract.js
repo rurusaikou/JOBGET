@@ -4,7 +4,7 @@
  */
 import { chromeAsync } from "../../shared/storage/chrome-storage.js";
 
-const UNSUPPORTED_PAGE_MESSAGE = "当前网址不支持提取 JD，仅支持 BOSS 直聘、智联招聘和猎聘的职位详情页。其他渠道请使用「手动添加JD」。";
+const UNSUPPORTED_PAGE_MESSAGE = "当前网址不支持提取岗位，仅支持 BOSS 直聘、智联招聘和猎聘的职位详情页。其他渠道请使用「手动添加岗位」。";
 
 export function isSupportedExtractionUrl(value) {
   try {
@@ -29,7 +29,7 @@ export async function extractFromCurrentTab() {
   }
 
   const response = await sendMessageWithInjection(tab.id, { type: "ROLEMI_EXTRACT" });
-  if (!response || !response.ok) throw new Error((response && response.message) || "页面没有返回 JD 信息");
+  if (!response || !response.ok) throw new Error((response && response.message) || "页面没有返回岗位信息");
   return response.job;
 }
 

@@ -354,7 +354,7 @@
     if (!job || (!job.title && !job.description)) {
       return {
         ok: false,
-        message: "当前页面不像 JD 详情页，请进入职位详情页后再提取"
+        message: "当前页面不像岗位详情页，请进入职位详情页后再提取"
       };
     }
 

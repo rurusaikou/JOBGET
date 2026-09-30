@@ -29,52 +29,59 @@
       <section id="jobsView" class="view active">
         <div class="view-title">
           <div>
-            <h1>JD 获取</h1>
-            <p id="status">可以继续提取、手动添加或导出</p>
+            <h1>岗位获取</h1>
+            <p id="status">今天在看什么机会？ 👋</p>
           </div>
           <div class="title-actions">
-            <span id="count" class="count">0</span>
-            <button id="extractBtn" class="soft-btn" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"></path></svg><span>提取当前JD</span></button>
-            <button id="manualAddBtn" class="soft-btn" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg><span>手动添加JD</span></button>
+            <button id="extractBtn" class="primary" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"></path></svg><span>提取当前岗位</span></button>
+            <button id="manualAddBtn" class="soft-btn" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg><span>手动添加岗位</span></button>
           </div>
         </div>
 
         <article id="emptyPanel" class="empty-panel">
-          <h2>还没有添加 JD</h2>
-          <p>可手动粘贴其他渠道的 JD，或打开 BOSS 直聘、智联招聘或猎聘的职位详情页后，RoleMI 会保存岗位字段，并生成后续分析、匹配和沟通工作流。</p>
-          <div class="feature-grid">
-            <span>JD 结构化</span>
-            <span>Excel 导出</span>
-            <span>收藏归档</span>
-            <span>沟通草稿</span>
+          <h2>让每一次投递更有准备</h2>
+          <div class="empty-value-list">
+            <div class="empty-value-item">
+              <span class="empty-value-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5M9 12h6M9 16h6"></path></svg></span>
+              <div><strong>看懂岗位</strong><p>理解岗位本质、核心要求和隐含要求。</p></div>
+            </div>
+            <div class="empty-value-item">
+              <span class="empty-value-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></span>
+              <div><strong>看清差距</strong><p>区分直接匹配、可迁移能力和关键缺口。</p></div>
+            </div>
+            <div class="empty-value-item">
+              <span class="empty-value-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"></path><path d="m13.5 8 3 3M4 20h6"></path></svg></span>
+              <div><strong>知道怎么投</strong><p>判断值不值得投，并给出简历和沟通建议。</p></div>
+            </div>
           </div>
         </article>
 
         <div id="searchRow" class="search-row is-hidden">
           <input id="jobSearch" type="search" placeholder="搜索职位 / 公司 / 关键词">
+          <span id="count" class="count" aria-label="岗位数量">0</span>
         </div>
 
         <div id="jobList" class="job-list"></div>
-        <div class="bottom-actions">
-          <button id="exportAllBtn" class="soft-btn" type="button">导出全部JD</button>
+        <div id="bottomActions" class="bottom-actions is-hidden">
+          <button id="exportAllBtn" class="soft-btn" type="button">导出全部岗位</button>
           <button id="clearBtn" class="danger-btn" type="button">清空岗位池</button>
         </div>
       </section>
 
       <section id="manualView" class="view">
         <div class="sub-header"><button id="manualBackBtn" class="back-inline" type="button">‹ 返回岗位池</button></div>
-        <div class="view-title"><div><h1>手动添加 JD</h1><p>粘贴从官网、公众号或其他渠道获取的 JD 内容，添加到岗位池</p></div></div>
+        <div class="view-title"><div><h1>手动添加岗位</h1><p>粘贴从官网、公众号或其他渠道获取的岗位描述，添加到岗位池</p></div></div>
         <form id="manualJobForm" class="card manual-form">
-          <h2>JD 信息</h2>
+          <h2>岗位信息</h2>
           <label class="manual-field" for="manualTitle"><span>职位名称（选填）</span><input id="manualTitle" name="title" placeholder="如：AI Agent 产品经理"></label>
           <label class="manual-field" for="manualCompany"><span>公司 / 地点（选填）</span><input id="manualCompany" name="company" placeholder="如：XX科技 · 上海"></label>
           <label class="manual-field" for="manualExperience"><span>岗位信息（选填）</span><input id="manualExperience" name="experience" placeholder="如：经验不限 · 本科"></label>
           <label class="manual-field" for="manualSalary"><span>薪资（选填）</span><input id="manualSalary" name="salary" placeholder="如：30-50K · 16薪"></label>
-          <label for="manualDescription">JD 内容 <span class="required-mark">*</span></label>
-          <textarea id="manualDescription" name="description" required maxlength="1000" aria-describedby="manualCount manualError" placeholder="请粘贴完整的 JD 内容……&#10;（支持从官网、公众号、PDF、图片文字、猎头信息等渠道复制的内容）"></textarea>
+          <label for="manualDescription">岗位描述 <span class="required-mark">*</span></label>
+          <textarea id="manualDescription" name="description" required maxlength="1000" aria-describedby="manualCount manualError" placeholder="请粘贴完整的岗位描述……&#10;（支持从官网、公众号、PDF、图片文字、猎头信息等渠道复制的内容）"></textarea>
           <p id="manualCount" class="note manual-count">0 / 1000</p>
           <p id="manualError" class="manual-error" role="alert"></p>
-          <div class="manual-actions"><button id="manualCancelBtn" class="soft-btn" type="button">取消</button><button id="manualSubmitBtn" class="primary" type="submit">添加 JD</button></div>
+          <div class="manual-actions"><button id="manualCancelBtn" class="soft-btn" type="button">取消</button><button id="manualSubmitBtn" class="primary" type="submit">添加岗位</button></div>
         </form>
       </section>
 
@@ -108,10 +115,10 @@
         <div id="jdStep" class="step-view active">
           <div class="action-row">
             <button id="detailAnalyzeBtn" class="primary" type="button">深度分析</button>
-            <button id="copyJdBtn" class="soft-btn" type="button">复制 JD</button>
+            <button id="copyJdBtn" class="soft-btn" type="button">复制岗位描述</button>
           </div>
           <article class="card jd-detail-card">
-            <h2>JD 详情</h2>
+            <h2>岗位详情</h2>
             <dl>
               <div>
                 <dt>职位名称</dt>
@@ -138,7 +145,7 @@
           <article id="analysisStatusCard" class="analysis-state card">
             <div>
               <h2 id="analysisStatusTitle">深度分析</h2>
-              <p id="analysisStatusText" aria-live="polite">点击岗位池中的“深度分析”后，将基于当前 JD 内容生成结构化分析。</p>
+              <p id="analysisStatusText" aria-live="polite">点击岗位池中的“深度分析”后，将基于当前岗位描述生成结构化分析。</p>
             </div>
             <button id="retryAnalysisBtn" class="soft-btn is-hidden" type="button">重新分析</button>
           </article>
@@ -172,7 +179,7 @@
             </div>
             <ul id="analysisIdeal"></ul>
           </article>
-          <p class="analysis-note analysis-result-card">小贴士：以上信息基于JD分析得出，建议结合面试进一步验证与补充。</p>
+          <p class="analysis-note analysis-result-card">小贴士：以上信息基于岗位描述分析得出，建议结合面试进一步验证与补充。</p>
         </div>
 
         <div id="matchStep" class="step-view">
@@ -275,7 +282,7 @@
               <span class="revision-head-icon">≡</span>
               <div>
                 <h2>简历修改建议</h2>
-                <p>基于当前 JD 分析，建议从以下方向优化，提升与岗位的匹配度。</p>
+                <p>基于当前岗位分析，建议从以下方向优化，提升与岗位的匹配度。</p>
               </div>
             </div>
             <div id="revisionPriority" class="revision-priority is-hidden">
@@ -327,8 +334,8 @@
         </div>
         <div class="help-groups">
           <section class="help-group"><h2>开始使用</h2>
-            <button class="help-link" data-help-topic="extract" type="button"><span><strong>提取当前 JD</strong><small>从招聘网站读取并保存当前岗位。</small></span><i aria-hidden="true">›</i></button>
-            <button class="help-link" data-help-topic="manual" type="button"><span><strong>手动添加 JD</strong><small>粘贴其他渠道的岗位描述并保存。</small></span><i aria-hidden="true">›</i></button>
+            <button class="help-link" data-help-topic="extract" type="button"><span><strong>提取当前岗位</strong><small>从招聘网站读取并保存当前岗位。</small></span><i aria-hidden="true">›</i></button>
+            <button class="help-link" data-help-topic="manual" type="button"><span><strong>手动添加岗位</strong><small>粘贴其他渠道的岗位描述并保存。</small></span><i aria-hidden="true">›</i></button>
           </section>
           <section class="help-group"><h2>分析岗位</h2>
             <button class="help-link" data-help-topic="analysis" type="button"><span><strong>岗位分析</strong><small>理解岗位本质、要求和理想候选人。</small></span><i aria-hidden="true">›</i></button>
@@ -369,7 +376,7 @@
               <label><input type="radio" name="type" value="other"><span>其他</span></label>
             </div>
           </fieldset>
-          <label class="feedback-job" for="feedbackJob"><strong>相关岗位（可选）</strong><small class="feedback-job-hint">选择相关岗位后，将同时提交该岗位的 JD 及已生成的分析结果，用于定位问题和改进分析效果。不包含简历原文。</small><select id="feedbackJob" name="jobId"><option value="">不关联岗位</option></select></label>
+          <label class="feedback-job" for="feedbackJob"><strong>相关岗位（可选）</strong><small class="feedback-job-hint">选择相关岗位后，将同时提交该岗位的描述及已生成的分析结果，用于定位问题和改进分析效果。不包含简历原文。</small><select id="feedbackJob" name="jobId"><option value="">不关联岗位</option></select></label>
           <label class="feedback-content" for="feedbackContent"><strong>反馈内容</strong><textarea id="feedbackContent" name="content" required maxlength="500" placeholder="请描述你遇到的问题或建议…"></textarea></label>
           <p id="feedbackCount" class="feedback-count">0 / 500</p>
           <p id="feedbackStatus" class="feedback-status" role="status" aria-live="polite"></p>

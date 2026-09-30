@@ -92,7 +92,7 @@ function renderAnalysisStatus({ isLoading, validation, error, result }) {
   }
 
   if (result?.isJobDescription === false) {
-    qs("#analysisStatusTitle").textContent = "当前内容不是招聘 JD";
+    qs("#analysisStatusTitle").textContent = "当前内容不是招聘岗位";
     qs("#analysisStatusText").textContent = `${result.nonJdReason || ""} 不进行匹配、修改建议生成和沟通。请更换为招聘岗位描述后重新分析。`;
     return;
   }
@@ -104,7 +104,7 @@ function renderAnalysisStatus({ isLoading, validation, error, result }) {
   }
 
   qs("#analysisStatusTitle").textContent = "尚未分析";
-  qs("#analysisStatusText").textContent = "点击“重新分析”生成该 JD 的结构化深度分析。";
+  qs("#analysisStatusText").textContent = "点击“重新分析”生成该岗位的结构化深度分析。";
 }
 
 function renderAnalysisSections(result) {

@@ -24,7 +24,7 @@ export function renderDetail() {
   qsa(".flow-tabs button").forEach((button) => {
     const blocked = nonJd && ["match", "revision", "greeting"].includes(button.dataset.step);
     button.disabled = blocked;
-    button.title = blocked ? "当前内容不是招聘 JD，无法使用此功能" : "";
+    button.title = blocked ? "当前内容不是招聘岗位，无法使用此功能" : "";
   });
   if (nonJd && ["match", "revision", "greeting"].includes(state.navigation.step)) actions.setStep("analysis");
   qs("#detailTitle").textContent = job.title || "未识别职位名";
@@ -33,7 +33,7 @@ export function renderDetail() {
   qs("#jdFullCompany").textContent = [job.company, job.location].filter(Boolean).join(" · ") || "-";
   qs("#jdFullMeta").textContent = [job.experience, job.education, job.postedDate, job.sourceSite].filter(Boolean).join(" · ") || "-";
   qs("#jdFullSalary").textContent = job.salary || "-";
-  qs("#jdDetailText").textContent = job.description || "当前提取结果没有 JD 原文，请核对招聘页面结构。";
+  qs("#jdDetailText").textContent = job.description || "当前提取结果没有岗位描述，请核对招聘页面结构。";
   qs("#detailStar").classList.toggle("active", job.starred);
   renderDeepAnalysis({ ...job, deepAnalysis: reusableAnalysis(job) }, {
     analyzingJob: state.tasks.deepAnalysis.loadingJobId,

@@ -66,7 +66,7 @@ async function init() {
   state.jobs = await getJobs();
   await restoreResumeState();
   refresh();
-  setStatus(state.jobs.length ? "可以继续提取、手动添加或导出" : "可提取当前页面或手动添加 JD");
+  setStatus("今天在看什么机会？ 👋");
   setView("jobs");
   setStep("jd");
 }

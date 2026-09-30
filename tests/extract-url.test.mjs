@@ -23,7 +23,7 @@ test('unsupported tabs are rejected before messaging or script injection', async
   };
   globalThis.window = { chrome: globalThis.chrome };
   try {
-    await assert.rejects(extractFromCurrentTab(), /当前网址不支持提取 JD.*手动添加JD/);
+    await assert.rejects(extractFromCurrentTab(), /当前网址不支持提取岗位.*手动添加岗位/);
     tab = { id: 1, url: 'https://www.zhipin.com', pendingUrl: 'chrome://extensions' };
     await assert.rejects(extractFromCurrentTab(), /当前网址不支持/);
     assert.equal(calls, 0);

@@ -56,6 +56,7 @@ export function renderFavorites() {
 
 export function renderJobSummary() {
   qs("#count").textContent = String(state.jobs.length);
+  qs("#bottomActions").classList.toggle("is-hidden", state.jobs.length === 0);
   qs("#exportAllBtn").disabled = state.jobs.length === 0;
   qs("#clearBtn").disabled = state.jobs.length === 0;
   qs("#exportFavoritesBtn").disabled = state.jobs.every((job) => !job.starred);
@@ -136,7 +137,7 @@ export function bindJobsEvents() {
       });
       if (!result.added) {
         finishUsage(true);
-        qs("#manualError").textContent = "已存在相同 JD，未重复保存";
+        qs("#manualError").textContent = "已存在相同岗位，未重复保存";
         return;
       }
       finishUsage(true);
@@ -154,7 +155,7 @@ export function bindJobsEvents() {
     } finally {
       saving = false;
       controls.forEach((control) => { control.disabled = false; });
-      qs("#manualSubmitBtn").textContent = "添加 JD";
+      qs("#manualSubmitBtn").textContent = "添加岗位";
     }
   });
 
@@ -172,7 +173,7 @@ export function bindJobsEvents() {
       finishUsage(true);
       if (result.added) state.navigation.selectedJob = state.jobs.length - 1;
       actions.refresh();
-      setStatus(result.added ? "已保存到岗位池" : "已存在相同 JD，未重复保存");
+      setStatus(result.added ? "已保存到岗位池" : "已存在相同岗位，未重复保存");
     } catch (error) {
       finishUsage(false);
       setStatus(error.message || "提取失败");
@@ -182,7 +183,7 @@ export function bindJobsEvents() {
   });
 
   qs("#jobSearch").addEventListener("input", (event) => renderJobs(event.target.value));
-  qs("#exportAllBtn").addEventListener("click", () => exportJobs(state.jobs, qs("#exportAllBtn"), "暂无 JD", state.resumeState.data));
+  qs("#exportAllBtn").addEventListener("click", () => exportJobs(state.jobs, qs("#exportAllBtn"), "暂无岗位", state.resumeState.data));
   qs("#exportFavoritesBtn").addEventListener("click", () => exportJobs(state.jobs.filter((job) => job.starred), qs("#exportFavoritesBtn"), "暂无收藏", state.resumeState.data));
   qs("#clearBtn").addEventListener("click", async () => {
     requests.invalidate();

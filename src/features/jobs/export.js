@@ -44,7 +44,7 @@ export function jobRows(jobs, resume) {
       "工作经验": job.experience || "",
       "学历要求": job.education || "",
       "薪资": job.salary || "",
-      "JD原文": job.description || "",
+      "岗位描述": job.description || "",
       "发布日期": job.postedDate || "",
       "来源网站": job.sourceSite || inferSourceSite(job.sourceUrl),
       "来源链接": job.sourceUrl || "",
@@ -59,9 +59,9 @@ export function jobRows(jobs, resume) {
       "关键缺口": joinObjects(match.gaps, ["gap", "impact"]),
       "简历修改建议": joinObjects((match.revisions || []).map(normalizeRevision), ["category", "summary", "original", "rewrite", "reason"]),
       "求职开场白": greetingResult.greeting || "",
-      "JD分析输入Tokens": tokenValue(analysisUsage.inputTokens),
-      "JD分析输出Tokens": tokenValue(analysisUsage.outputTokens),
-      "JD分析总Tokens": tokenValue(analysisUsage.totalTokens),
+      "岗位分析输入Tokens": tokenValue(analysisUsage.inputTokens),
+      "岗位分析输出Tokens": tokenValue(analysisUsage.outputTokens),
+      "岗位分析总Tokens": tokenValue(analysisUsage.totalTokens),
       "匹配分析输入Tokens": tokenValue(matchUsage.inputTokens),
       "匹配分析输出Tokens": tokenValue(matchUsage.outputTokens),
       "匹配分析总Tokens": tokenValue(matchUsage.totalTokens),
@@ -88,7 +88,7 @@ function tokenValue(value) {
 }
 
 async function downloadWorkbook(jobs, filename, resume) {
-  const blob = window.ROLEMI_XLSX.createWorkbookBlob(jobRows(jobs, resume), "JD信息");
+  const blob = window.ROLEMI_XLSX.createWorkbookBlob(jobRows(jobs, resume), "岗位信息");
   await downloadBlob(blob, filename, true);
 }
 

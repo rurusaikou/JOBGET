@@ -10,10 +10,10 @@ export function validateJobForAnalysis(job) {
   const description = String(job && job.description || "").trim();
   const compact = description.replace(/\s+/g, "");
 
-  if (!description) return { ok: false, message: "JD 内容为空，未发起分析。" };
-  if (description.length > MODEL_INPUT_LIMITS.jobDescriptionChars) return { ok: false, message: "JD 内容超过 5000 字，未发起分析。" };
-  if (compact.length < 20) return { ok: false, message: "JD 内容异常，未发起分析。" };
-  if (/^(暂无|无|未识别|undefined|null|-)+$/i.test(compact)) return { ok: false, message: "JD 内容异常，未发起分析。" };
+  if (!description) return { ok: false, message: "岗位描述为空，未发起分析。" };
+  if (description.length > MODEL_INPUT_LIMITS.jobDescriptionChars) return { ok: false, message: "岗位描述超过 5000 字，未发起分析。" };
+  if (compact.length < 20) return { ok: false, message: "岗位描述异常，未发起分析。" };
+  if (/^(暂无|无|未识别|undefined|null|-)+$/i.test(compact)) return { ok: false, message: "岗位描述异常，未发起分析。" };
 
   return { ok: true, message: "" };
 }

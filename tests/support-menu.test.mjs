@@ -24,7 +24,7 @@ test("使用帮助按四组进入功能详情", async () => {
     readFile(new URL("src/popup.html", root), "utf8"),
     readFile(new URL("src/app/controllers/help-controller.js", root), "utf8")
   ]);
-  for (const title of ["开始使用", "分析岗位", "准备投递", "管理岗位", "提取当前 JD", "手动添加 JD", "岗位分析", "简历匹配", "修改建议", "沟通草稿", "收藏", "Excel 导出"]) {
+  for (const title of ["开始使用", "分析岗位", "准备投递", "管理岗位", "提取当前岗位", "手动添加岗位", "岗位分析", "简历匹配", "修改建议", "沟通草稿", "收藏", "Excel 导出"]) {
     assert.ok(html.includes(title));
   }
   assert.ok(html.includes('id="helpDetailView"'));

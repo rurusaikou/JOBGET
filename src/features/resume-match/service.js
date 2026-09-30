@@ -94,8 +94,8 @@ async function runMatchAttempt({
 
 function validateResumeMatchInput(job, resume, settings, context) {
   const jdLength = String(job && job.description || "").trim().length;
-  if (!job || !jdLength) throw new Error("当前 JD 内容为空，无法进行简历匹配分析。");
-  if (context.stats.job === "raw" && jdLength > MODEL_INPUT_LIMITS.jobDescriptionChars) throw new Error("当前 JD 内容超过 5000 字，无法进行简历匹配分析。");
+  if (!job || !jdLength) throw new Error("当前岗位描述为空，无法进行简历匹配分析。");
+  if (context.stats.job === "raw" && jdLength > MODEL_INPUT_LIMITS.jobDescriptionChars) throw new Error("当前岗位描述超过 5000 字，无法进行简历匹配分析。");
   if (!resume?.profile || context.stats.resume !== "profile") throw new Error("请先完成简历理解，再进行匹配分析。");
   validateModelSettings(settings);
 }

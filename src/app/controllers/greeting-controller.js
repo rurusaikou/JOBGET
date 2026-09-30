@@ -70,7 +70,7 @@ export function renderGreeting() {
     qs("#goMatchUploadBtn").textContent = "去更换简历";
   } else if (!uploaded) {
     qs("#greetingPrompt h2").textContent = "先上传简历";
-    qs("#greetingPrompt p").textContent = "求职开场白会基于 JD 和简历匹配亮点生成。请先在“匹配”中上传简历。";
+    qs("#greetingPrompt p").textContent = "求职开场白会基于岗位描述和简历匹配亮点生成。请先在“匹配”中上传简历。";
     qs("#goMatchUploadBtn").textContent = "去上传简历";
   } else if (match.status === "loading") {
     qs("#greetingPrompt h2").textContent = "正在匹配分析";
@@ -78,7 +78,7 @@ export function renderGreeting() {
     qs("#goMatchUploadBtn").textContent = "查看匹配进度";
   } else if (!canGenerate) {
     qs("#greetingPrompt h2").textContent = "先完成匹配分析";
-    qs("#greetingPrompt p").textContent = "求职开场白需要基于简历与 JD 的匹配亮点生成。请先完成匹配分析。";
+    qs("#greetingPrompt p").textContent = "求职开场白需要基于简历与岗位的匹配亮点生成。请先完成匹配分析。";
     qs("#goMatchUploadBtn").textContent = "去匹配分析";
   }
 }
