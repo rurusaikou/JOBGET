@@ -11,9 +11,9 @@ import { AiApiError, AiNetworkError, AiResponseIncompleteError } from "./errors.
 
 export function validateModelSettings(settings) {
   if (settings.provider === "hosted") { backendUrl("/api/ai"); return; }
-  if (!settings.apiKey || settings.apiKey.trim().length < 12) throw new Error(`请先在 API 设置中填写有效的 API Key。`);
-  if (!settings.baseUrl || !/^https:\/\//i.test(settings.baseUrl)) throw new Error("请先在 API 设置中填写 https:// 开头的 Base URL。");
-  if (!settings.model || !settings.model.trim()) throw new Error("请先在 API 设置中填写模型名称。");
+  if (!settings.apiKey || settings.apiKey.trim().length < 12) throw new Error(`请先在服务设置中填写有效的 API Key。`);
+  if (!settings.baseUrl || !/^https:\/\//i.test(settings.baseUrl)) throw new Error("请先在服务设置中填写 https:// 开头的 API 地址。");
+  if (!settings.model || !settings.model.trim()) throw new Error("请先在服务设置中填写模型名称。");
 }
 
 export async function postResponses({ label, settings, body, errorPrefix }) {

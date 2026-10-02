@@ -27,7 +27,9 @@ export function copyText(text) {
   textarea.select();
 
   try {
-    return document.execCommand("copy");
+    return Boolean(document.execCommand("copy"));
+  } catch (_error) {
+    return false;
   } finally {
     document.body.removeChild(textarea);
   }

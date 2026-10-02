@@ -48,6 +48,8 @@ export async function runDeepAnalysis(job, { onUpdate = () => {} } = {}) {
   const snapshot = frozenInputs(job);
   const key = taskKey("deep_analysis", snapshot);
   if (!key) return;
+  // 页面切换后再次触发同一岗位，也复用当前请求，避免重复模型调用和计费。
+  if (requests.get("deep_analysis", job.id, key)?.loading) return;
   const finishUsage = startUsage("deep_analysis");
   const ticket = requests.start("deep_analysis", job.id, key);
   onUpdate();

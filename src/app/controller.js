@@ -18,7 +18,6 @@ import { bindDetailEvents, configureDetailController, renderDetail, startDeepAna
 import { bindResumeEvents, configureResumeController, renderResumeFlow, restoreResumeState } from "./controllers/resume-controller.js";
 import { bindGreetingEvents, configureGreetingController, renderGreeting } from "./controllers/greeting-controller.js";
 import { bindFeedbackEvents, renderFeedbackJobs } from "./controllers/feedback-controller.js";
-import { bindHelpEvents } from "./controllers/help-controller.js";
 
 function refresh() {
   syncTaskState();
@@ -56,19 +55,34 @@ function bindEvents() {
   bindResumeEvents();
   bindGreetingEvents();
   bindFeedbackEvents();
-  bindHelpEvents();
 }
 
 async function init() {
   configureControllers();
   bindEvents();
-  if (API_SETTINGS_ENABLED) await loadSettings();
-  state.jobs = await getJobs();
-  await restoreResumeState();
+  const failures = [];
+  if (API_SETTINGS_ENABLED) {
+    try {
+      await loadSettings();
+    } catch (_error) {
+      failures.push("服务设置");
+    }
+  }
+  try {
+    state.jobs = await getJobs();
+  } catch (_error) {
+    failures.push("岗位池");
+    state.jobs = [];
+  }
+  try {
+    await restoreResumeState();
+  } catch (_error) {
+    failures.push("简历");
+  }
   refresh();
-  setStatus("今天在看什么机会？ 👋");
   setView("jobs");
   setStep("jd");
+  setStatus(failures.length ? `${failures.join("、")}加载失败，请刷新后重试` : "今天在看什么机会？ 👋");
 }
 
 init().catch((error) => setStatus(error.message || "初始化失败"));

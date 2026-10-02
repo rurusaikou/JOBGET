@@ -65,8 +65,8 @@ export function bindDetailEvents() {
   qs("#detailAnalyzeBtn").addEventListener("click", analyzeCurrentJobIfNeeded);
   qs("#retryAnalysisBtn").addEventListener("click", () => startDeepAnalysis());
   qs("#copyJdBtn").addEventListener("click", () => {
-    copyText(qs("#jdDetailText").textContent.trim());
-    flashButton(qs("#copyJdBtn"), "已复制");
+    const copied = copyText(qs("#jdDetailText").textContent.trim());
+    flashButton(qs("#copyJdBtn"), copied ? "已复制" : "请手动复制");
   });
 }
 

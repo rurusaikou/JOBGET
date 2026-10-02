@@ -11,16 +11,29 @@ import { chromeAsync } from "../../shared/storage/chrome-storage.js";
 import { isResultCurrent, reusableAnalysis } from "../../shared/context/cache.js";
 
 export async function exportJobs(jobs, button, emptyText, resume) {
+  if (button.disabled) return;
   if (!jobs.length) {
     flashButton(button, emptyText);
     return;
   }
 
   const date = new Date().toISOString().slice(0, 10);
+  const label = button.textContent;
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  button.textContent = "导出中…";
   try {
     await trackUsage("excel_export", () => downloadWorkbook(jobs, `RoleMI-${date}.xlsx`, resume));
-    flashButton(button, "已导出");
-  } catch { flashButton(button, "导出失败，请重试"); }
+    button.textContent = "已导出";
+  } catch {
+    button.textContent = "导出失败，请重试";
+  } finally {
+    button.removeAttribute("aria-busy");
+    setTimeout(() => {
+      button.disabled = false;
+      button.textContent = label;
+    }, 900);
+  }
 }
 
 export function jobRows(jobs, resume) {

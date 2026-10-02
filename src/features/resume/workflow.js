@@ -15,6 +15,7 @@ const EMPTY_RESUME_MESSAGE = "当前还没有简历。支持 PDF / DOCX，提取
 export async function handleResumeFile(state, file, callbacks) {
   const finishUsage = startUsage("resume_import");
   const input = qs("#resumeFile");
+  qs("#resumeFileName").textContent = file.name;
   qs("#resumeStatus").textContent = `正在解析：${file.name}...`;
   input.disabled = true;
   state.resumeState.parsing = true;
@@ -88,6 +89,7 @@ export async function clearCurrentResume(state, callbacks) {
 export function renderResumeStatus(state) {
   const resume = state.resumeState.data;
   const status = qs("#resumeStatus");
+  status.classList.remove("is-hidden");
   status.classList.toggle("error", Boolean(state.resumeState.uploadError || resumeBlockingMessage(resume)));
   if (state.resumeState.uploadError) {
     status.textContent = state.resumeState.uploadError;
@@ -117,10 +119,8 @@ export function renderResumeStatus(state) {
   }
   const profile = reusableResumeProfile(resume);
   if (profile) {
-    const work = profile.workExperience?.length || 0;
-    const projects = profile.projects?.length || 0;
-    const skills = profile.skills?.length || 0;
-    qs("#resumeStatus").textContent = `简历已理解：${work} 段工作经历 · ${projects} 个项目 · ${skills} 项技能，后续匹配可直接复用。`;
+    status.textContent = "";
+    status.classList.add("is-hidden");
     return;
   }
   qs("#resumeStatus").textContent = `已提取：${label}，共 ${length} 字。匹配前会自动完成简历理解。`;

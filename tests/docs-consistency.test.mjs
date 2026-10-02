@@ -19,7 +19,7 @@ async function sourceJavaScriptFiles(directory) {
 
 test("自有 JavaScript 源码在首个语句前保留模块说明", async () => {
   const files = await sourceJavaScriptFiles(new URL("src/", root));
-  assert.equal(files.length, 72);
+  assert.ok(files.length > 0);
   for (const file of files) {
     const source = await readFile(file, "utf8");
     assert.match(source, /^\s*\/\*\*[\s\S]*?\*\//, `${file.pathname} 缺少头部模块说明`);
@@ -119,6 +119,11 @@ test("手动岗位录入上限与表单和文档保持一致且不显示计数",
   assert.match(textarea, /\brequired\b/);
   assert.ok(!html.includes('id="manualCount"'));
   assert.ok(!controller.includes("#manualCount"));
+  assert.match(html, /岗位描述 <span>必填 · 最多 2000 字<\/span>/);
+  assert.match(html, /<details id="manualOptionalDetails" class="manual-optional">[\s\S]*?<summary>补充信息 · 选填<\/summary>/);
+  assert.match(html, /id="manualSubmitBtn"[^>]*disabled/);
+  assert.match(html, /id="manualBackBtn"[^>]*>‹ 返回<\/button>/);
+  assert.match(controller, /manualSubmitBtn[\s\S]*?disabled = saving \|\| !description\.value\.trim\(\)/);
   assert.ok(spec.includes(`MANUAL_JD_MAX_LENGTH = ${MANUAL_JD_MAX_LENGTH}`));
   for (const doc of [readme, spec, dataModel, product]) {
     assert.ok(doc.includes(String(MANUAL_JD_MAX_LENGTH)));

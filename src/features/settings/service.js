@@ -1,5 +1,5 @@
 /**
- * API 设置服务：校验、保存与恢复自定义连接配置，并执行连接测试。
+ * 服务设置：校验、保存与恢复自定义 Responses API 配置，并执行连接测试。
  * 非敏感字段写入 local，密钥仅写入 session；全部清空后恢复托管。
  */
 import { API_KEY_SESSION_KEY, SETTINGS_KEY } from "../../shared/config/constants.js";
@@ -29,6 +29,10 @@ export async function loadSettings() {
   qs("#baseUrl").value = settings.baseUrl;
   qs("#modelName").value = settings.model;
   qs("#apiKey").value = settings.apiKey;
+  qs("#currentServiceStatus").textContent = settings.provider === "hosted"
+    ? "当前使用默认服务"
+    : "当前使用自定义服务";
+  return settings;
 }
 
 function readFormSettings() {
@@ -40,24 +44,47 @@ function readFormSettings() {
   };
   if (!settings.baseUrl && !settings.model && !settings.apiKey) return { ...defaultSettings };
   validateModelSettings(settings);
-  if (/\/chat\/completions\/?$/i.test(settings.baseUrl)) throw new Error("仅支持 Responses API，请填写 Base URL 或 /responses 地址。");
+  if (/\/chat\/completions\/?$/i.test(settings.baseUrl)) throw new Error("仅支持 Responses API，请填写 API 基础地址或 /responses 地址。");
   return settings;
 }
 
 export async function saveSettings() {
   const settings = readFormSettings();
-  const { apiKey, ...publicSettings } = settings;
-  await setSession({ [API_KEY_SESSION_KEY]: apiKey });
-  await setLocal({ [SETTINGS_KEY]: publicSettings });
+  await persistSettings(settings);
   return settings;
+}
+
+export async function restoreDefaultSettings() {
+  const settings = { ...defaultSettings };
+  await persistSettings(settings);
+  qs("#baseUrl").value = "";
+  qs("#modelName").value = "";
+  qs("#apiKey").value = "";
+  qs("#currentServiceStatus").textContent = "当前使用默认服务";
+  return settings;
+}
+
+async function persistSettings(settings) {
+  const previous = await getSavedSettings();
+  const { apiKey, ...publicSettings } = settings;
+  try {
+    await setSession({ [API_KEY_SESSION_KEY]: apiKey });
+    await setLocal({ [SETTINGS_KEY]: publicSettings });
+  } catch (error) {
+    // 两个 Chrome Storage 区域无法原子提交；失败时尽力恢复二者的旧值。
+    const { apiKey: previousApiKey, ...previousPublicSettings } = previous;
+    await Promise.allSettled([
+      setSession({ [API_KEY_SESSION_KEY]: previousApiKey || "" }),
+      setLocal({ [SETTINGS_KEY]: previousPublicSettings })
+    ]);
+    throw error;
+  }
 }
 
 export async function testApiKey() {
   const status = qs("#apiStatus");
-  const button = qs("#testApiBtn");
   status.className = "api-status";
   status.textContent = "正在连接模型服务...";
-  button.disabled = true;
   try {
     const settings = readFormSettings();
     const result = await postResponses({
@@ -77,8 +104,6 @@ export async function testApiKey() {
   } catch (error) {
     status.classList.add("error");
     status.textContent = error.message || "连接测试失败。";
-  } finally {
-    button.disabled = false;
   }
 }
 

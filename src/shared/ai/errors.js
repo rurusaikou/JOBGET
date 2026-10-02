@@ -72,9 +72,9 @@ export function isResumeRevisionRetryableError(error) {
 export function deepAnalysisUserMessage(error) {
   if (error?.hosted) return error.message;
   const message = String(error?.message || "");
-  if (/^请先在 API 设置中/.test(message)) return message;
-  if (error?.code === "AI_NETWORK_ERROR") return "连接模型服务失败，请检查网络或 API 设置后重试。";
-  if (error?.code === "AI_API_ERROR") return "模型服务暂时不可用，请检查 API 设置后重试。";
+  if (/^请先在服务设置中/.test(message)) return message;
+  if (error?.code === "AI_NETWORK_ERROR") return "连接模型服务失败，请检查网络或服务设置后重试。";
+  if (error?.code === "AI_API_ERROR") return "模型服务暂时不可用，请检查服务设置后重试。";
   return "分析未完成，请重新分析。";
 }
 
@@ -83,9 +83,9 @@ export function resumeProfileUserMessage(error) {
   if (error?.reason === "invalid_resume") return "当前文档不是有效简历，请清除后上传简历。";
   if (error?.hosted) return error.message;
   const message = String(error?.message || "");
-  if (/^请先在 API 设置中/.test(message)) return message;
+  if (/^请先在服务设置中/.test(message)) return message;
   if (/超过 \d+ 字/.test(message)) return message;
-  if (error?.code === "AI_NETWORK_ERROR") return "简历理解失败：请检查网络或 API 设置后重试。";
+  if (error?.code === "AI_NETWORK_ERROR") return "简历理解失败：请检查网络或服务设置后重试。";
   if (error?.code === "AI_API_ERROR") return "简历理解失败：模型服务暂时不可用，请稍后重试。";
   return "简历理解未完成，请点击“匹配”重试。";
 }

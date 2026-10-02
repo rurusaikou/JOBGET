@@ -3,6 +3,7 @@
  * 业务文本经 HTML 转义，事件绑定由 Controller 负责。
  */
 import { escapeHtml } from "../../shared/ui/dom.js";
+import { reusableAnalysis } from "../../shared/context/cache.js";
 import { keywordsFor } from "./intelligence.js";
 
 export function jobSearchText(job) {
@@ -20,27 +21,30 @@ export function jobSearchText(job) {
 }
 
 export function jobCard(job, index, selected) {
+  const analyzed = Boolean(reusableAnalysis(job));
   return jobCardTemplate(job, index, {
     selected,
     favorite: false,
     starTitle: "收藏",
     actions: `
-      <div class="job-actions">
-        <button data-action="detail" type="button">查看详情</button>
-        <button class="deep" data-action="analyze" type="button">深度分析</button>
+      <div class="job-analysis-footer">
+        <span>${analyzed ? "已有分析结果" : "尚未分析"}</span>
+        <button class="soft-btn" data-action="analyze" type="button">${analyzed ? "查看分析" : "分析岗位"} <i aria-hidden="true">→</i></button>
       </div>
     `
   });
 }
 
 export function favoriteCard(job, index) {
+  const analyzed = Boolean(reusableAnalysis(job));
   return jobCardTemplate(job, index, {
     selected: false,
     favorite: true,
     starTitle: "取消收藏",
     actions: `
-      <div class="favorite-actions">
-        <button class="primary" data-action="intelligence" type="button">深度分析结果</button>
+      <div class="job-analysis-footer">
+        <span>${analyzed ? "已有分析结果" : "尚未分析"}</span>
+        <button class="soft-btn" data-action="intelligence" type="button">${analyzed ? "查看分析" : "分析岗位"} <i aria-hidden="true">→</i></button>
       </div>
     `
   });
@@ -51,6 +55,7 @@ function jobCardTemplate(job, index, options) {
 
   return `
     <article class="job-card ${options.selected ? "selected" : ""} ${options.favorite ? "favorite-card" : ""}" data-job="${index}">
+      <button class="job-card-detail-hit" data-action="detail" type="button" aria-label="查看岗位详情：${escapeHtml(job.title || "未识别职位名")}"></button>
       <div class="job-top">
         <div>
           <h2>${escapeHtml(job.title || "未识别职位名")}</h2>

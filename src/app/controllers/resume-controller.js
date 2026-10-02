@@ -21,9 +21,12 @@ export function renderResumeFlow() {
   const uploaded = state.resumeState.uploaded;
   const resumeBusy = Boolean(state.resumeState.parsing || state.resumeState.understanding);
   qs("#resumeFile").disabled = resumeBusy;
-  qs("#matchUploadPrompt").classList.toggle("is-hidden", uploaded);
+  qs("#resumeUploadControl").setAttribute("aria-disabled", String(resumeBusy));
+  qs("#matchUploadPrompt").classList.remove("is-hidden");
   qs("#matchResults").classList.toggle("is-hidden", !uploaded);
   qs("#clearResumeBtn").disabled = !uploaded || resumeBusy;
+  qs("#resumeUploadLabel").textContent = uploaded ? "更换简历" : "上传简历";
+  qs("#resumeFileName").textContent = state.resumeState.data?.source?.fileName || "尚未选择文件";
   renderResumeStatus(state);
   renderResumeMatchView(state);
   renderRevisionStep();

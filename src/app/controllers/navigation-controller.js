@@ -18,8 +18,11 @@ export function setView(view) {
   state.navigation.view = view;
   qsa(".view").forEach((node) => node.classList.remove("active"));
   qs(`#${view}View`).classList.add("active");
-  qsa(".top-tabs button").forEach((button) => button.classList.toggle("active", button.dataset.tab === view));
-  qs("#plugin").classList.toggle("task-mode", ["detail", "settings", "manual", "help", "helpDetail", "feedback"].includes(view));
+  qsa(".top-tabs button").forEach((button) => {
+    const active = button.dataset.tab === view && (view !== "jobs" || state.jobs.length > 0);
+    button.classList.toggle("active", active);
+  });
+  qs("#plugin").classList.toggle("task-mode", ["detail", "settings", "manual", "help", "feedback"].includes(view));
   hooks.onView(view);
 }
 
@@ -36,7 +39,7 @@ export function setStep(step) {
 export function openJob(index, step, returnView = "jobs", options = {}) {
   state.navigation.selectedJob = index;
   state.navigation.returnView = returnView;
-  qs("#backBtn").textContent = returnView === "favorites" ? "‹ 返回收藏" : "‹ 返回岗位池";
+  qs("#backBtn").textContent = "‹ 返回";
   setView("detail");
   setStep(step);
   if (options.afterOpen) options.afterOpen();
@@ -49,6 +52,7 @@ export function bindNavigationEvents() {
     menu.classList.add("is-hidden");
     menuButton.setAttribute("aria-expanded", "false");
   };
+  const menuItems = () => qsa(".header-menu-item").filter((item) => !item.classList.contains("is-hidden") && !item.disabled);
   const openUtilityView = (view) => {
     if (view === "settings" && !API_SETTINGS_ENABLED) return;
     // 在辅助页再次点击当前菜单项时只关闭菜单，避免把返回目标覆盖成当前页。
@@ -57,11 +61,12 @@ export function bindNavigationEvents() {
       return;
     }
     // 只有从非辅助页进入时才记录返回目标；辅助页之间切换仍返回原业务页。
-    if (!["settings", "help", "helpDetail", "feedback"].includes(state.navigation.view)) {
+    if (!["settings", "help", "feedback"].includes(state.navigation.view)) {
       state.navigation.utilityReturnView = state.navigation.view;
     }
     closeMenu();
     setView(view);
+    qs(`#${view}BackBtn`)?.focus();
   };
 
   menuButton.addEventListener("click", (event) => {
@@ -69,11 +74,33 @@ export function bindNavigationEvents() {
     const willOpen = menu.classList.contains("is-hidden");
     menu.classList.toggle("is-hidden", !willOpen);
     menuButton.setAttribute("aria-expanded", String(willOpen));
+    if (willOpen) menuItems()[0]?.focus();
   });
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".header-menu-wrap")) closeMenu();
   });
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenu(); });
+  menu.addEventListener("keydown", (event) => {
+    const items = menuItems();
+    const index = items.indexOf(document.activeElement);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMenu();
+      menuButton.focus();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) || !items.length) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home" ? 0
+      : event.key === "End" ? items.length - 1
+        : event.key === "ArrowDown" ? (index + 1 + items.length) % items.length
+          : (index - 1 + items.length) % items.length;
+    items[nextIndex].focus();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || menu.classList.contains("is-hidden")) return;
+    closeMenu();
+    menuButton.focus();
+  });
 
   qs("#settingsBtn").addEventListener("click", () => openUtilityView("settings"));
   qs("#helpBtn").addEventListener("click", () => openUtilityView("help"));

@@ -19,18 +19,15 @@ test("统一菜单提供设置、帮助和反馈入口", async () => {
   assert.match(html, /id="helpBtn"[\s\S]*?class="menu-icon"/);
 });
 
-test("使用帮助按四组进入功能详情", async () => {
-  const [html, controller] = await Promise.all([
-    readFile(new URL("src/popup.html", root), "utf8"),
-    readFile(new URL("src/app/controllers/help-controller.js", root), "utf8")
-  ]);
-  for (const title of ["开始使用", "分析岗位", "准备投递", "管理岗位", "提取当前岗位", "手动添加岗位", "岗位分析", "简历匹配", "修改建议", "沟通草稿", "收藏", "Excel 导出"]) {
+test("使用帮助按四组在原页独立抽拉并允许多项展开", async () => {
+  const html = await readFile(new URL("src/popup.html", root), "utf8");
+  for (const title of ["开始使用", "分析岗位", "准备投递", "管理岗位", "提取当前岗位", "手动添加岗位", "岗位分析", "简历匹配", "修改建议", "沟通草稿", "收藏", "导出收藏"]) {
     assert.ok(html.includes(title));
   }
-  assert.ok(html.includes('id="helpDetailView"'));
-  assert.equal((html.match(/class="help-link"/g) || []).length, 8);
-  assert.match(controller, /setView\("helpDetail"\)/);
-  assert.ok(!html.includes('class="help-steps"'));
+  assert.ok(!html.includes('id="helpDetailView"'));
+  assert.equal((html.match(/class="help-item"/g) || []).length, 8);
+  assert.equal((html.match(/<details class="help-item">/g) || []).length, 8);
+  assert.ok(!html.includes('name="help-accordion"'), "帮助条目不得通过同名 details 变成互斥手风琴");
 });
 
 test("反馈可提交关联岗位工作流快照", async () => {
