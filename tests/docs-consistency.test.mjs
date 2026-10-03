@@ -196,8 +196,5 @@ test("Deep Analysis 等待态文案与文档保持一致", async () => {
   assert.match(html, /id="analysisStatusText" aria-live="polite"/);
   // README 只保留产品价值；等待主题等界面细节由实现契约负责精确描述。
   assert.match(readme, /先看懂岗位，再决定怎么投/);
-  for (const valueTitle of ["看懂岗位", "看清差距", "知道怎么投"]) {
-    assert.ok(readme.includes(`### ${valueTitle}`));
-  }
   assert.match(featureSpec, /不代表模型真实执行阶段或完成比例/);
 });

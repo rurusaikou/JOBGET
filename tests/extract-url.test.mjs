@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { extractFromCurrentTab, isSupportedExtractionUrl } from '../src/features/jobs/extract.js';
 
 test('extraction only accepts HTTP(S) URLs on supported domains', () => {
-  for (const url of ['https://www.zhipin.com/job_detail/123.html', 'https://jobs.zhaopin.com/123', 'http://liepin.com/job/123']) {
+  for (const url of [
+    'https://www.zhipin.com/job_detail/123.html',
+    'https://jobs.zhaopin.com/123',
+    'https://www.zhaopin.com/jobs?jl=530&kw=产品经理',
+    'https://www.zhaopin.com/beijing/pingmiansheji/',
+    'https://www.zhaopin.com/beijing/ruanjianchanpinjingli/?pageMode=recommend&jl=530',
+    'http://liepin.com/job/123'
+  ]) {
     assert.equal(isSupportedExtractionUrl(url), true, url);
   }
   for (const url of ['chrome://extensions', 'chrome://newtab', 'edge://extensions', 'about:blank', 'file:///tmp/jd.html', 'https://example.com', 'https://fakezhipin.com', 'https://zhipin.com.example.com', 'https://example.com/?url=zhipin.com', undefined, '']) {

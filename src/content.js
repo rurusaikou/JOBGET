@@ -288,27 +288,48 @@
     ]));
   }
 
-  // 智联招聘没有 BOSS 的字体混淆和左右详情联动；按用户整理的 DOM 直接取详情页字段。
+  // 智联的搜索、推荐和职位分类入口共用新版 job-detail-* 详情结构。
+  // 搜索/推荐页同时存在左侧职位列表，因此必须先锁定右侧详情面板，避免提取到其他岗位。
+  // 旧版 summary-planes-* 选择器继续作为兼容回退。
   function extractZhaopinJob() {
     if (!/(^|\.)zhaopin\.com$/i.test(location.hostname)) return null;
 
-    const title = childText(".summary-planes__title span", 0);
-    const salary = normalizeSalary(firstText([".summary-planes__salary"]));
+    const detailRoot = document.querySelector(".job-split-layout__right .job-detail-panel")
+      || document.querySelector(".job-detail-panel")
+      || document;
+    const salary = normalizeSalary(firstText([
+      ".job-detail-summary__salary",
+      ".summary-planes__salary"
+    ], detailRoot));
+    const title = firstText([
+      ".job-detail-summary__title-text",
+      ".summary-planes__title span"
+    ], detailRoot);
+    const tags = Array.from(detailRoot.querySelectorAll(".job-detail-summary__tags .job-detail-summary__tag"))
+      .map((node) => textOf(node.querySelector("span") || node))
+      .filter(Boolean);
     const job = {
       ...EMPTY_JOB,
       title: cleanTitle(title, salary),
-      company: cleanCompanyName(firstText([".company-summary__name-link"])),
-      location: childText(".summary-planes__info li", 0),
-      experience: childText(".summary-planes__info li", 1),
-      education: childText(".summary-planes__info li", 2),
+      company: cleanCompanyName(firstText([
+        ".job-detail-summary__company-name",
+        ".company-summary__name-link"
+      ], detailRoot)),
+      location: tags[0] || childText(".summary-planes__info li", 0, detailRoot),
+      experience: tags[1] || childText(".summary-planes__info li", 1, detailRoot),
+      education: tags[2] || childText(".summary-planes__info li", 2, detailRoot),
       salary,
-      description: firstText([".describtion-card__detail-content"]),
-      postedDate: normalizePostedDate(firstText([".summary-planes__time"])),
+      description: firstText([
+        ".job-description__content",
+        ".describtion-card__detail-content"
+      ], detailRoot),
+      postedDate: normalizePostedDate(firstText([".summary-planes__time"], detailRoot)),
       sourceSite: "智联招聘",
       sourceUrl: location.href
     };
 
-    return job.title || job.description ? job : null;
+    // 保留部分提取结果交给统一校验判断“仍在加载”，但校验失败时不会写入岗位池。
+    return job;
   }
 
   // 猎聘详情页字段都在固定模块内；split span 也占位，所以按用户标注的 span 序号取值。
@@ -331,7 +352,8 @@
       sourceUrl: location.href
     };
 
-    return job.title || job.description ? job : null;
+    // 保留部分提取结果交给统一校验判断“仍在加载”，但校验失败时不会写入岗位池。
+    return job;
   }
 
   function extractJob() {
@@ -340,6 +362,25 @@
     if (/(^|\.)zhaopin\.com$/i.test(location.hostname)) return extractZhaopinJob();
     if (/(^|\.)liepin\.com$/i.test(location.hostname)) return extractLiepinJob();
     return null;
+  }
+
+  function detectBlockedPageMessage() {
+    // 仅使用明确的整页状态文案；不匹配普通导航中的“登录/注册”，避免误伤正常职位页。
+    const pageText = cleanText(`${document.title || ""}\n${textOf(document.body)}`);
+
+    if (/Security Verification|正在验证连接安全性|安全验证|请完成验证|滑动验证|验证后继续/i.test(pageText)) {
+      return "招聘网站正在进行安全验证，请先在网页完成验证后再提取";
+    }
+
+    if (/该职位已暂停招聘|职位已暂停|职位已下线|岗位已下线|职位已关闭|岗位已关闭|职位不存在|岗位不存在|已停止招聘/.test(pageText)) {
+      return "当前岗位已暂停或下线，请更换有效岗位后再提取";
+    }
+
+    if (/请(?:先)?登录|登录后(?:可|才能|查看)|登录状态.*失效|登录已过期|请重新登录/.test(pageText)) {
+      return "当前登录状态已失效，请先在招聘网站重新登录后再提取";
+    }
+
+    return "";
   }
 
   function validateJob(job) {
@@ -351,10 +392,22 @@
       };
     }
 
+    const blockedPageMessage = detectBlockedPageMessage();
+    if (blockedPageMessage) {
+      return { ok: false, message: blockedPageMessage };
+    }
+
     if (!job || (!job.title && !job.description)) {
       return {
         ok: false,
         message: "当前页面不像岗位详情页，请进入职位详情页后再提取"
+      };
+    }
+
+    if (!job.title || !job.description) {
+      return {
+        ok: false,
+        message: "岗位详情仍在加载，请等待标题和岗位描述显示完整后重试"
       };
     }
 
