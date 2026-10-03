@@ -88,11 +88,22 @@ button:focus-visible {
   background: #fff;
 }
 
-.plugin-header strong {
+.brand-home {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 9px;
+  padding: 4px 7px 4px 2px;
   color: #111827;
+  background: transparent;
+  font-weight: 750;
+}
+
+.brand-home:not(:disabled):hover {
+  color: var(--primary);
+  background: #f4f7fc;
 }
 
 .logo {
@@ -255,6 +266,24 @@ ul {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+}
+
+.jobs-sticky-tools {
+  position: sticky;
+  z-index: 12;
+  top: 0;
+  border-bottom: 1px solid #e8edf5;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+#jobsView.is-empty .jobs-sticky-tools {
+  display: none;
+}
+
+#jobsView.is-home .jobs-sticky-tools,
+#jobsView.is-home #jobList,
+#jobsView.is-home #bottomActions {
+  display: none;
 }
 
 #jobsView.is-empty .populated-home {
@@ -505,6 +534,10 @@ ul {
   display: grid;
   gap: 10px;
   padding: 0 14px;
+}
+
+#jobsView #jobList {
+  padding-top: 8px;
 }
 
 .match-list {

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createExtractionSession, shouldReturnToJobs } from "../src/features/jobs/extraction-session.js";
 
 const root = new URL("../", import.meta.url);
 
@@ -38,6 +39,78 @@ test("首页标签、返回文案和岗位分析状态保持一致", async () =>
   assert.match(view, /reusableAnalysis\(job\)/);
   assert.match(view, /export function favoriteCard[\s\S]*?const analyzed = Boolean\(reusableAnalysis\(job\)\)[\s\S]*?尚未分析[\s\S]*?分析岗位/);
   assert.ok(!view.includes("深度分析结果</button>"));
+});
+
+test("品牌入口进入独立欢迎首页且保留用户上下文", async () => {
+  const [html, css, navigation, jobsController] = await Promise.all([
+    readFile(new URL("src/popup.html", root), "utf8"),
+    readFile(new URL("src/popup.css", root), "utf8"),
+    readFile(new URL("src/app/controllers/navigation-controller.js", root), "utf8"),
+    readFile(new URL("src/app/controllers/jobs-controller.js", root), "utf8")
+  ]);
+
+  assert.match(html, /id="homeBtn"[\s\S]*?aria-label="返回 RoleMI 首页"[\s\S]*?RoleMI/);
+  assert.match(navigation, /#homeBtn[\s\S]*?setView\("home"\)[\s\S]*?#jobsView[\s\S]*?scrollTop = 0/);
+  assert.match(navigation, /contentView = view === "home" \? "jobs" : view/);
+  assert.match(navigation, /\.top-tabs button[\s\S]*?button\.dataset\.tab === view/);
+  assert.match(css, /#jobsView\.is-home \.jobs-sticky-tools[\s\S]*?#jobsView\.is-home #jobList[\s\S]*?display: none/);
+  assert.match(jobsController, /showingHome = state\.navigation\.view === "home"[\s\S]*?#emptyPanel[\s\S]*?hasJobs && !showingHome/);
+  const homeHandler = navigation.match(/qs\("#homeBtn"\)[\s\S]*?\n  \}\);/)?.[0] || "";
+  assert.ok(!/search\s*=|jobs\s*=|requests/.test(homeHandler), "返回首页不应清空搜索、岗位或任务");
+});
+
+test("清空岗位池后重置欢迎首页的提取状态", async () => {
+  const source = await readFile(new URL("../src/app/controllers/jobs-controller.js", import.meta.url), "utf8");
+
+  assert.match(source, /const EMPTY_HOME_DEFAULT_STATUS = "支持 BOSS 直聘、智联招聘和猎聘"/);
+  assert.match(source, /const message = result\.added[\s\S]*?setEmptyHomeStatus\(message\)/);
+  assert.match(source, /await updateJobs\(\(\) => \[\]\)[\s\S]*?setEmptyHomeStatus\(\)/);
+});
+
+test("欢迎首页提取成功后返回岗位池", async () => {
+  const source = await readFile(new URL("../src/app/controllers/jobs-controller.js", import.meta.url), "utf8");
+  const extractionSuccess = source.match(/finishUsage\(true\);[\s\S]*?const message = result\.added/)?.[0] || "";
+
+  assert.match(extractionSuccess, /shouldReturnToJobs\(startedFromHome, state\.navigation\.view\)/);
+  assert.match(extractionSuccess, /actions\.setView\("jobs"\)/);
+  assert.match(extractionSuccess, /actions\.refresh\(\)/);
+  assert.match(source, /if \(result\.added\)[\s\S]*?scrollIntoView\(\{ block: "nearest" \}\)/);
+});
+
+test("提取入口共享锁，清空使迟到结果失效且新岗位不受旧搜索影响", async () => {
+  const source = await readFile(new URL("../src/app/controllers/jobs-controller.js", import.meta.url), "utf8");
+  const extraction = source.match(/const extractCurrentJob = async \(\) => \{[\s\S]*?\n  \};/)?.[0] || "";
+  const clearing = source.match(/#confirmClearBtn[\s\S]*?\n  \}\);/)?.[0] || "";
+
+  assert.match(extraction, /const token = extractionSession\.begin\(\)[\s\S]*?if \(token === null\) return/);
+  assert.match(extraction, /setExtractionBusy\(true\)/);
+  assert.match(source, /buttons = \[qs\("#extractBtn"\), qs\("#emptyExtractBtn"\)\]/);
+  assert.ok((extraction.match(/extractionSession\.isCurrent\(token\)/g) || []).length >= 3);
+  assert.match(clearing, /invalidateExtraction\(\)[\s\S]*?await updateJobs\(\(\) => \[\]\)/);
+  assert.match(extraction, /state\.navigation\.search = ""[\s\S]*?#jobSearch[\s\S]*?value = ""/);
+});
+
+test("提取事务按真实异步顺序隔离迟到结果和重复提交", async () => {
+  const session = createExtractionSession();
+  const first = session.begin();
+
+  assert.equal(typeof first, "number");
+  assert.equal(session.begin(), null, "在途提取期间必须拒绝第二次提交");
+  session.invalidate();
+  assert.equal(session.isCurrent(first), false, "清空后旧提取必须失效");
+
+  const second = session.begin();
+  assert.equal(session.isCurrent(second), true);
+  assert.equal(session.finish(first), false, "迟到的旧请求不能结束或解锁新请求");
+  assert.equal(session.begin(), null, "新请求仍在执行时必须保持互斥");
+  assert.equal(session.finish(second), true);
+  assert.equal(typeof session.begin(), "number", "当前请求完成后才允许再次提取");
+
+  assert.equal(shouldReturnToJobs(true, "home"), true);
+  for (const view of ["jobs", "favorites", "help", "settings"]) {
+    assert.equal(shouldReturnToJobs(true, view), false, `用户已进入 ${view} 时不得抢夺导航`);
+  }
+  assert.equal(shouldReturnToJobs(false, "home"), false, "非首页发起的提取不得因中途进入首页而跳转");
 });
 
 test("收藏岗位底部入口按分析状态启动或查看分析", async () => {

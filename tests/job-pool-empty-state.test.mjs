@@ -23,6 +23,12 @@ test("岗位池空状态展示独立欢迎页并隐藏岗位管理工具", async
   assert.match(html, /id="extractBtn" class="primary"[\s\S]*?提取当前岗位/);
   assert.match(html, /id="manualAddBtn" class="soft-btn"[\s\S]*?手动添加岗位/);
   assert.match(html, /id="searchRow"[\s\S]*?id="jobSearch"[\s\S]*?id="count" class="count"/);
+  assert.match(html, /class="jobs-sticky-tools"[\s\S]*?id="extractBtn"[\s\S]*?id="searchRow"/);
+  assert.match(css, /\.jobs-sticky-tools\s*\{[\s\S]*?position: sticky;[\s\S]*?top: 0;/);
+  const stickyTools = css.match(/\.jobs-sticky-tools\s*\{[\s\S]*?\}/)?.[0] || "";
+  assert.ok(!stickyTools.includes("box-shadow"), "岗位池吸顶区不应使用阴影");
+  assert.match(css, /#jobsView #jobList\s*\{[\s\S]*?padding-top: 8px/);
+  assert.match(css, /#jobsView\.is-empty \.jobs-sticky-tools\s*\{[\s\S]*?display: none/);
   const titleActions = html.match(/<div class="title-actions">[\s\S]*?<\/div>/)?.[0] || "";
   assert.ok(!titleActions.includes('id="count"'));
   assert.match(css, /\.search-row\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 38px/);

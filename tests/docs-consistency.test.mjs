@@ -49,7 +49,7 @@ test("文档与 v2.7.0 Resume Understanding / Match Pipeline 保持一致", asyn
   assert.equal(packageInfo.name, "rolemi");
   assert.match(readme, /^# RoleMI$/m);
   assert.match(popup, /<title>RoleMI<\/title>/);
-  assert.match(popup, />RoleMI<\/strong>/);
+  assert.match(popup, /id="homeBtn"[\s\S]*?>RoleMI<\/span><\/button>/);
   assert.match(debugSource, /window\.ROLEMI_DEBUG_API/);
   assert.match(xlsxSource, /window\.ROLEMI_XLSX/);
 

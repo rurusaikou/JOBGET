@@ -6,6 +6,7 @@ import { startUsage, trackUsage } from "../../shared/backend/usage.js";
 import { createManualJob } from "../../features/jobs/manual.js";
 import { exportJobs } from "../../features/jobs/export.js";
 import { extractFromCurrentTab } from "../../features/jobs/extract.js";
+import { createExtractionSession, shouldReturnToJobs } from "../../features/jobs/extraction-session.js";
 import { favoriteCard, jobCard, jobSearchText } from "../../features/jobs/view.js";
 import { appendUniqueJob } from "../../features/jobs/repository.js";
 import { reusableAnalysis } from "../../shared/context/cache.js";
@@ -14,6 +15,28 @@ import { requests, state, updateJobs } from "../runtime.js";
 
 let actions = { openJob: () => {}, refresh: () => {}, setView: () => {} };
 const pendingStars = new Set();
+const EMPTY_HOME_DEFAULT_STATUS = "支持 BOSS 直聘、智联招聘和猎聘";
+const extractionSession = createExtractionSession();
+let extractButtonContents = null;
+
+function setEmptyHomeStatus(message = EMPTY_HOME_DEFAULT_STATUS) {
+  qs("#emptyActionStatus").textContent = message;
+}
+
+function setExtractionBusy(busy) {
+  const buttons = [qs("#extractBtn"), qs("#emptyExtractBtn")];
+  if (!extractButtonContents) extractButtonContents = buttons.map((button) => button.innerHTML);
+  buttons.forEach((button, index) => {
+    button.disabled = busy;
+    button.toggleAttribute("aria-busy", busy);
+    button.innerHTML = busy ? "提取中…" : extractButtonContents[index];
+  });
+}
+
+function invalidateExtraction() {
+  extractionSession.invalidate();
+  setExtractionBusy(false);
+}
 
 export function configureJobsController(nextActions = {}) {
   actions = { ...actions, ...nextActions };
@@ -22,10 +45,12 @@ export function configureJobsController(nextActions = {}) {
 export function renderJobs(filter = state.navigation.search) {
   state.navigation.search = filter;
   const hasJobs = state.jobs.length > 0;
+  const showingHome = state.navigation.view === "home";
   qs("#jobsView").classList.toggle("is-empty", !hasJobs);
+  qs("#jobsView").classList.toggle("is-home", showingHome);
   qs('.top-tabs [data-tab="jobs"]').classList.toggle("active", hasJobs && state.navigation.view === "jobs");
-  qs("#emptyPanel").classList.toggle("is-hidden", hasJobs);
-  qs("#searchRow").classList.toggle("is-hidden", !hasJobs);
+  qs("#emptyPanel").classList.toggle("is-hidden", hasJobs && !showingHome);
+  qs("#searchRow").classList.toggle("is-hidden", !hasJobs || showingHome);
   if (!hasJobs) {
     qs("#jobList").innerHTML = "";
     return;
@@ -191,38 +216,57 @@ export function bindJobsEvents() {
     }
   });
 
-  const extractCurrentJob = async (button) => {
-    const buttonContent = button.innerHTML;
-    button.disabled = true;
-    button.setAttribute("aria-busy", "true");
-    button.textContent = "提取中…";
+  const extractCurrentJob = async () => {
+    const token = extractionSession.begin();
+    if (token === null) return;
+    const startedFromHome = state.navigation.view === "home";
+    setExtractionBusy(true);
     setStatus("正在提取当前页面...");
-    qs("#emptyActionStatus").textContent = "正在提取当前页面...";
+    setEmptyHomeStatus("正在提取当前页面...");
     const finishUsage = startUsage("jd_extract");
     try {
       const job = await extractFromCurrentTab();
+      if (!extractionSession.isCurrent(token)) {
+        finishUsage(false);
+        return;
+      }
       let result;
       await updateJobs((jobs) => {
         result = appendUniqueJob(jobs, job);
         return result.jobs;
       });
+      if (!extractionSession.isCurrent(token)) {
+        finishUsage(false);
+        return;
+      }
       finishUsage(true);
-      if (result.added) state.navigation.selectedJob = state.jobs.length - 1;
+      if (result.added) {
+        state.navigation.selectedJob = state.jobs.length - 1;
+        state.navigation.search = "";
+        qs("#jobSearch").value = "";
+      }
+      if (shouldReturnToJobs(startedFromHome, state.navigation.view)) actions.setView("jobs");
       actions.refresh();
-      setStatus(result.added ? "已保存到岗位池" : "已存在相同岗位，未重复保存");
+      const message = result.added ? "已保存到岗位池" : "已存在相同岗位，未重复保存";
+      setStatus(message);
+      setEmptyHomeStatus(message);
+      if (result.added && state.navigation.view === "jobs") {
+        qs(`#jobList [data-job="${state.navigation.selectedJob}"]`)?.scrollIntoView({ block: "nearest" });
+      }
     } catch (error) {
       finishUsage(false);
+      if (!extractionSession.isCurrent(token)) return;
       const message = error.message || "提取失败";
       setStatus(message);
-      qs("#emptyActionStatus").textContent = message;
+      setEmptyHomeStatus(message);
     } finally {
-      button.disabled = false;
-      button.removeAttribute("aria-busy");
-      button.innerHTML = buttonContent;
+      if (extractionSession.finish(token)) {
+        setExtractionBusy(false);
+      }
     }
   };
-  qs("#extractBtn").addEventListener("click", (event) => extractCurrentJob(event.currentTarget));
-  qs("#emptyExtractBtn").addEventListener("click", (event) => extractCurrentJob(event.currentTarget));
+  qs("#extractBtn").addEventListener("click", extractCurrentJob);
+  qs("#emptyExtractBtn").addEventListener("click", extractCurrentJob);
 
   qs("#jobSearch").addEventListener("input", (event) => renderJobs(event.target.value));
   qs("#exportAllBtn").addEventListener("click", () => exportJobs(state.jobs, qs("#exportAllBtn"), "暂无岗位", state.resumeState.data));
@@ -253,10 +297,12 @@ export function bindJobsEvents() {
     button.textContent = "清空中…";
     errorText.textContent = "";
     try {
+      invalidateExtraction();
       requests.invalidate();
       await updateJobs(() => []);
       state.navigation.selectedJob = 0;
       actions.refresh();
+      setEmptyHomeStatus();
       setStatus("岗位池已清空");
       clearDialog.close();
     } catch (error) {

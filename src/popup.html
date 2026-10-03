@@ -10,7 +10,7 @@
   <body>
     <aside id="plugin" class="plugin">
       <header class="plugin-header">
-        <strong><img class="logo" src="../assets/icons/logo-transparent-128.png" width="26" height="26" alt="">RoleMI</strong>
+        <button id="homeBtn" class="brand-home" type="button" aria-label="返回 RoleMI 首页"><img class="logo" src="../assets/icons/logo-transparent-128.png" width="26" height="26" alt=""><span>RoleMI</span></button>
         <div class="header-menu-wrap">
           <button id="moreMenuBtn" class="icon-btn" type="button" title="更多" aria-label="打开更多菜单" aria-haspopup="menu" aria-expanded="false">⋮</button>
           <div id="headerMenu" class="header-menu is-hidden" role="menu">
@@ -27,14 +27,21 @@
       </nav>
 
       <section id="jobsView" class="view active">
-        <div class="view-title populated-home">
-          <div>
-            <h1>岗位获取</h1>
-            <p id="status">今天在看什么机会？ 👋</p>
+        <div class="jobs-sticky-tools">
+          <div class="view-title populated-home">
+            <div>
+              <h1>岗位获取</h1>
+              <p id="status">今天在看什么机会？ 👋</p>
+            </div>
+            <div class="title-actions">
+              <button id="extractBtn" class="primary" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"></path></svg><span>提取当前岗位</span></button>
+              <button id="manualAddBtn" class="soft-btn" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg><span>手动添加岗位</span></button>
+            </div>
           </div>
-          <div class="title-actions">
-            <button id="extractBtn" class="primary" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"></path></svg><span>提取当前岗位</span></button>
-            <button id="manualAddBtn" class="soft-btn" type="button"><svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg><span>手动添加岗位</span></button>
+
+          <div id="searchRow" class="search-row is-hidden">
+            <input id="jobSearch" type="search" placeholder="搜索职位 / 公司 / 关键词">
+            <span id="count" class="count" aria-label="岗位数量">0</span>
           </div>
         </div>
 
@@ -61,11 +68,6 @@
             <span>知道怎么投</span>
           </div>
         </article>
-
-        <div id="searchRow" class="search-row is-hidden">
-          <input id="jobSearch" type="search" placeholder="搜索职位 / 公司 / 关键词">
-          <span id="count" class="count" aria-label="岗位数量">0</span>
-        </div>
 
         <div id="jobList" class="job-list"></div>
         <div id="bottomActions" class="bottom-actions is-hidden">

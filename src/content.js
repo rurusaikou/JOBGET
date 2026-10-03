@@ -216,7 +216,7 @@
 
     // BOSS 正文实际落在 p.desc 里，后面的 .job-boss-info 和 .job-address
     // 是同级后续模块，所以这里直接取 p.desc，不再从 job-detail-body 整块取文本。
-    const description = textOf(detailBox.querySelector(".job-detail-body > p.desc"));
+    const description = extractZhipinDescription(detailBox);
 
     // 右侧详情没有稳定的公司和地点字段。more-job-btn 的 href 带有当前职位 jobId，
     // 再用这个 jobId 回到左侧对应职位卡片，才能取到同一职位的公司名和 company-location。
@@ -235,6 +235,23 @@
       sourceSite: "boss直聘",
       sourceUrl: location.href
     };
+  }
+
+  function extractZhipinDescription(detailBox) {
+    const direct = firstText([
+      ".job-detail-body > p.desc",
+      ".job-detail-body p.desc",
+      ".job-detail-body .job-description",
+      ".job-detail-body [class*='job-description']"
+    ], detailBox);
+    if (direct) return direct;
+
+    // BOSS 灰度页面会保留 job-detail-body，但给正文段落更换 class 或增加包装层。
+    // 此时只在当前详情正文区域的 p 中选择最长段落，避免读取 HR 信息或工作地址短文本。
+    const paragraphs = Array.from(detailBox.querySelectorAll(".job-detail-body p"))
+      .map((node) => textOf(node))
+      .filter((text) => text.length >= 20 && !/^工作地址/.test(text));
+    return paragraphs.sort((left, right) => right.length - left.length)[0] || "";
   }
 
   function findZhipinDetailJobId(detailBox) {
@@ -407,7 +424,7 @@
     if (!job.title || !job.description) {
       return {
         ok: false,
-        message: "岗位详情仍在加载，请等待标题和岗位描述显示完整后重试"
+        message: "未读取到完整岗位信息，请确认标题和岗位描述已经显示后重试"
       };
     }
 

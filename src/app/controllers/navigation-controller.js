@@ -16,8 +16,12 @@ export function configureNavigation(nextHooks = {}) {
 export function setView(view) {
   if (view === "settings" && !API_SETTINGS_ENABLED) return;
   state.navigation.view = view;
+  const contentView = view === "home" ? "jobs" : view;
   qsa(".view").forEach((node) => node.classList.remove("active"));
-  qs(`#${view}View`).classList.add("active");
+  qs(`#${contentView}View`).classList.add("active");
+  qs("#jobsView").classList.toggle("is-home", view === "home");
+  qs("#emptyPanel").classList.toggle("is-hidden", state.jobs.length > 0 && view !== "home");
+  qs("#searchRow").classList.toggle("is-hidden", state.jobs.length === 0 || view === "home");
   qsa(".top-tabs button").forEach((button) => {
     const active = button.dataset.tab === view && (view !== "jobs" || state.jobs.length > 0);
     button.classList.toggle("active", active);
@@ -68,6 +72,13 @@ export function bindNavigationEvents() {
     setView(view);
     qs(`#${view}BackBtn`)?.focus();
   };
+
+  qs("#homeBtn").addEventListener("click", () => {
+    closeMenu();
+    setView("home");
+    // 品牌入口进入独立欢迎首页，不清空搜索、岗位或进行中的任务。
+    qs("#jobsView").scrollTop = 0;
+  });
 
   menuButton.addEventListener("click", (event) => {
     event.stopPropagation();

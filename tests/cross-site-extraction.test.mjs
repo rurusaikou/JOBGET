@@ -111,6 +111,24 @@ test('BOSS never borrows company data from an unrelated card', () => {
   assert.equal(response.job.location, '北京');
 });
 
+test('BOSS extracts description when a new layout wraps or renames the paragraph', () => {
+  const detail = node('', {
+    '.job-detail-header .job-detail-info .job-name': node('社群销售'),
+    '.job-detail-header .job-detail-info .job-salary': node('15-30K'),
+    '.job-detail-header .tag-list li': [node('上海'), node('1-3年'), node('大专')],
+    '.job-detail-body p': [
+      node('上海市闵行区工作地址'),
+      node('负责社群运营、客户沟通和销售转化，完成业务目标并持续优化服务流程。')
+    ]
+  });
+  const document = node('', { '.job-detail-container .job-detail-box': detail });
+  const response = extractWithDocument(document, 'https://www.zhipin.com/web/geek/jobs');
+
+  assert.equal(response.ok, true);
+  assert.equal(response.job.title, '社群销售');
+  assert.equal(response.job.description, '负责社群运营、客户沟通和销售转化，完成业务目标并持续优化服务流程。');
+});
+
 test('Liepin extracts all core fields and normalizes the posted date', () => {
   const document = node('', {
     '.job-title.ellipsis-2': node('AI 产品经理'),
@@ -182,7 +200,7 @@ test('partially loaded details are rejected until both title and description exi
   for (const fixture of cases) {
     const response = extractWithDocument(fixture.document, fixture.href);
     assert.equal(response.ok, false, fixture.href);
-    assert.match(response.message, /岗位详情仍在加载.*标题和岗位描述/);
+    assert.match(response.message, /未读取到完整岗位信息.*标题和岗位描述/);
     assert.equal(response.job.title, '产品经理');
     assert.equal(response.job.description, '');
   }
