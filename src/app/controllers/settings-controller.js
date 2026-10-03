@@ -48,11 +48,11 @@ export function bindSettingsEvents() {
     button.textContent = "保存中…";
     try {
       const settings = await saveSettings();
-      qs("#currentServiceStatus").textContent = settings.provider === "hosted"
+      qs("#currentServiceStatus").textContent = settings.mode === "hosted"
         ? "当前使用默认服务"
         : "当前使用自定义服务";
       status.className = "api-status ok";
-      status.textContent = settings.provider === "hosted" ? "已恢复使用 RoleMI 服务。" : "已保存，将使用你的 Responses API。";
+      status.textContent = settings.mode === "hosted" ? "已恢复使用 RoleMI 服务。" : "已保存，将使用你的 Responses API。";
     } catch (error) {
       status.className = "api-status error";
       status.textContent = error.message || "保存失败，请重试。";

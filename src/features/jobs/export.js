@@ -10,7 +10,7 @@ import { dedupeJobs, inferSourceSite } from "./repository.js";
 import { chromeAsync } from "../../shared/storage/chrome-storage.js";
 import { isResultCurrent, reusableAnalysis } from "../../shared/context/cache.js";
 
-export async function exportJobs(jobs, button, emptyText, resume) {
+export async function exportJobs(jobs, button, emptyText, resume, exportScope = "全部岗位") {
   if (button.disabled) return;
   if (!jobs.length) {
     flashButton(button, emptyText);
@@ -23,7 +23,7 @@ export async function exportJobs(jobs, button, emptyText, resume) {
   button.setAttribute("aria-busy", "true");
   button.textContent = "导出中…";
   try {
-    await trackUsage("excel_export", () => downloadWorkbook(jobs, `RoleMI-${date}.xlsx`, resume));
+    await trackUsage("excel_export", () => downloadWorkbook(jobs, exportFilename(exportScope, date), resume));
     button.textContent = "已导出";
   } catch {
     button.textContent = "导出失败，请重试";
@@ -46,10 +46,6 @@ export function jobRows(jobs, resume) {
       job, resume, tone: job.greeting?.tone, maxChars: job.greeting?.maxChars
     }) ? job.greeting : {};
     const greetingResult = greeting.result || {};
-    const analysisUsage = analysis.usage || {};
-    const matchUsage = match.usage || {};
-    const greetingUsage = greetingResult.usage || {};
-
     return {
       "岗位": job.title || "",
       "公司": job.company || "",
@@ -71,18 +67,14 @@ export function jobRows(jobs, resume) {
       "可迁移能力": joinObjects((match.transferableMatches || []).map(normalizeTransferableMatch), ["requirement", "experience", "transferability", "boundary"]),
       "关键缺口": joinObjects(match.gaps, ["gap", "impact"]),
       "简历修改建议": joinObjects((match.revisions || []).map(normalizeRevision), ["category", "summary", "original", "rewrite", "reason"]),
-      "求职开场白": greetingResult.greeting || "",
-      "岗位分析输入Tokens": tokenValue(analysisUsage.inputTokens),
-      "岗位分析输出Tokens": tokenValue(analysisUsage.outputTokens),
-      "岗位分析总Tokens": tokenValue(analysisUsage.totalTokens),
-      "匹配分析输入Tokens": tokenValue(matchUsage.inputTokens),
-      "匹配分析输出Tokens": tokenValue(matchUsage.outputTokens),
-      "匹配分析总Tokens": tokenValue(matchUsage.totalTokens),
-      "开场白输入Tokens": tokenValue(greetingUsage.inputTokens),
-      "开场白输出Tokens": tokenValue(greetingUsage.outputTokens),
-      "开场白总Tokens": tokenValue(greetingUsage.totalTokens)
+      "求职开场白": greetingResult.greeting || ""
     };
   });
+}
+
+export function exportFilename(exportScope, date = new Date().toISOString().slice(0, 10)) {
+  const scope = exportScope === "收藏岗位" ? "收藏岗位" : "全部岗位";
+  return `RoleMI-${scope}-${date}.xlsx`;
 }
 
 function joinList(items) {
@@ -94,10 +86,6 @@ function joinObjects(items, keys) {
     const text = keys.map((key) => item && item[key]).filter(Boolean).join("｜");
     return text ? `${index + 1}. ${text}` : "";
   }).filter(Boolean).join("\n");
-}
-
-function tokenValue(value) {
-  return Number.isFinite(value) ? value : "";
 }
 
 async function downloadWorkbook(jobs, filename, resume) {

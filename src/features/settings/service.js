@@ -9,7 +9,7 @@ import { postResponses, validateModelSettings } from "../../shared/ai/client.js"
 import { extractResponseContent } from "../../shared/ai/response.js";
 import { MODEL_TOKEN_LIMITS } from "../../shared/ai/token-limits.js";
 
-export const defaultSettings = Object.freeze({ provider: "hosted", baseUrl: "", model: "", apiKey: "" });
+export const defaultSettings = Object.freeze({ mode: "hosted", provider: "", apiType: "responses", baseUrl: "", model: "", apiKey: "" });
 
 export async function getSavedSettings() {
   const data = await getLocal({ [SETTINGS_KEY]: defaultSettings });
@@ -21,7 +21,7 @@ export async function getSavedSettings() {
 // 入口开关只控制界面；用户已保存的自定义配置始终优先。
 export async function getSettings() {
   const settings = await getSavedSettings();
-  return settings.provider === "hosted" ? { ...defaultSettings } : { ...settings, provider: "custom" };
+  return settings.mode === "hosted" ? { ...defaultSettings } : { ...settings, mode: "custom" };
 }
 
 export async function loadSettings() {
@@ -29,7 +29,7 @@ export async function loadSettings() {
   qs("#baseUrl").value = settings.baseUrl;
   qs("#modelName").value = settings.model;
   qs("#apiKey").value = settings.apiKey;
-  qs("#currentServiceStatus").textContent = settings.provider === "hosted"
+  qs("#currentServiceStatus").textContent = settings.mode === "hosted"
     ? "当前使用默认服务"
     : "当前使用自定义服务";
   return settings;
@@ -37,14 +37,15 @@ export async function loadSettings() {
 
 function readFormSettings() {
   const settings = {
-    provider: "custom",
+    mode: "custom",
+    provider: "",
+    apiType: "responses",
     baseUrl: qs("#baseUrl").value.trim(),
     model: qs("#modelName").value.trim(),
     apiKey: qs("#apiKey").value.trim()
   };
   if (!settings.baseUrl && !settings.model && !settings.apiKey) return { ...defaultSettings };
   validateModelSettings(settings);
-  if (/\/chat\/completions\/?$/i.test(settings.baseUrl)) throw new Error("仅支持 Responses API，请填写 API 基础地址或 /responses 地址。");
   return settings;
 }
 
@@ -100,7 +101,7 @@ export async function testApiKey() {
     });
     if (JSON.parse(extractResponseContent(result)).ok !== true) throw new Error("服务未返回有效的 Responses API 测试结果。");
     status.classList.add("ok");
-    status.textContent = settings.provider === "hosted" ? "RoleMI 服务连接成功。" : "Responses API 连接测试通过。";
+    status.textContent = settings.mode === "hosted" ? "RoleMI 服务连接成功。" : "Responses API 连接测试通过。";
   } catch (error) {
     status.classList.add("error");
     status.textContent = error.message || "连接测试失败。";
@@ -108,20 +109,29 @@ export async function testApiKey() {
 }
 
 async function migratePlaintextApiKey(settings) {
-  if (!settings || !settings.apiKey) return withoutApiKey(settings || {});
+  const original = settings || {};
+  const migrated = withoutApiKey(original);
+  const { apiKey: _apiKey, ...publicSettings } = migrated;
+  const { apiKey: _originalApiKey, ...originalPublicSettings } = original;
 
-  // 旧版本曾把 API Key 写入 chrome.storage.local；加载设置时迁移到 session 并覆盖清理长期明文。
-  await setSession({ [API_KEY_SESSION_KEY]: settings.apiKey });
-  const migrated = withoutApiKey(settings);
-  await setLocal({ [SETTINGS_KEY]: migrated });
+  // 旧版 Key 转入 session；旧 provider 路由字段也一次性落盘为 mode/provider/apiType。
+  if (original.apiKey) await setSession({ [API_KEY_SESSION_KEY]: original.apiKey });
+  if (original.apiKey || JSON.stringify(originalPublicSettings) !== JSON.stringify(publicSettings)) {
+    await setLocal({ [SETTINGS_KEY]: publicSettings });
+  }
   return migrated;
 }
 
 function withoutApiKey(settings) {
   const { apiKey: _apiKey, ...publicSettings } = settings || {};
+  const legacyProvider = publicSettings.provider;
+  const mode = publicSettings.mode || (legacyProvider === "hosted" || !legacyProvider ? "hosted" : "custom");
+  const provider = ["hosted", "custom"].includes(legacyProvider) ? "" : (legacyProvider || "");
   return {
     ...defaultSettings,
     ...publicSettings,
-    provider: publicSettings.provider || "hosted"
+    mode,
+    provider,
+    apiType: "responses"
   };
 }

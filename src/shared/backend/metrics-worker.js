@@ -3,11 +3,22 @@
  * 限制事件年龄和队列容量；不可恢复批次移除，临时失败保留待重发。
  */
 import { backendUrl, USAGE_MODULES } from "./config.js";
+import { SETTINGS_KEY } from "../config/constants.js";
 const ID_KEY = "rolemi.installationId";
 const QUEUE_KEY = "rolemi.usageQueue";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let serial = Promise.resolve();
 let flushing;
+
+function settingsMode(settings) {
+  if (settings?.mode === "hosted" || settings?.mode === "custom") return settings.mode;
+  return settings?.provider && settings.provider !== "hosted" ? "custom" : "hosted";
+}
+
+async function currentMode() {
+  const data = await chrome.storage.local.get(SETTINGS_KEY);
+  return settingsMode(data[SETTINGS_KEY]);
+}
 
 // storage.local 没有跨异步步骤的事务能力；所有读改写都进入同一条 Promise 链，
 // 避免并发创建 installationId、入队和出队时互相覆盖。
@@ -35,7 +46,9 @@ export function enqueueUsage(payload) {
     const data = await chrome.storage.local.get(QUEUE_KEY);
     const queue = (data[QUEUE_KEY] || []).filter(item => Date.now() - Date.parse(item.date) < 7 * 86400000);
     if (!queue.some(item => item.execution_id === payload.execution_id && item.event === payload.event)) {
-      queue.push({ installation_id, module: payload.module, execution_id: payload.execution_id, event: payload.event, date: payload.date });
+      const existing = queue.find(item => item.execution_id === payload.execution_id && ["hosted", "custom"].includes(item.mode));
+      const mode = existing?.mode || await currentMode();
+      queue.push({ installation_id, module: payload.module, mode, execution_id: payload.execution_id, event: payload.event, date: payload.date });
     }
     await chrome.storage.local.set({ [QUEUE_KEY]: queue.slice(-200) });
   });
@@ -47,7 +60,11 @@ export function flushUsage() {
   flushing = (async () => {
     const batch = await locked(async () => {
       const data = await chrome.storage.local.get(QUEUE_KEY);
-      return (data[QUEUE_KEY] || []).filter(item => Date.now() - Date.parse(item.date) < 7 * 86400000).slice(0, 40);
+      const fallbackMode = await currentMode();
+      return (data[QUEUE_KEY] || [])
+        .filter(item => Date.now() - Date.parse(item.date) < 7 * 86400000)
+        .slice(0, 40)
+        .map(item => ({ ...item, mode: ["hosted", "custom"].includes(item.mode) ? item.mode : fallbackMode }));
     });
     if (!batch.length) return;
     const response = await fetch(backendUrl("/api/events"), {

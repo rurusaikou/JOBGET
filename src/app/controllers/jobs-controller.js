@@ -269,8 +269,8 @@ export function bindJobsEvents() {
   qs("#emptyExtractBtn").addEventListener("click", extractCurrentJob);
 
   qs("#jobSearch").addEventListener("input", (event) => renderJobs(event.target.value));
-  qs("#exportAllBtn").addEventListener("click", () => exportJobs(state.jobs, qs("#exportAllBtn"), "暂无岗位", state.resumeState.data));
-  qs("#exportFavoritesBtn").addEventListener("click", () => exportJobs(state.jobs.filter((job) => job.starred), qs("#exportFavoritesBtn"), "暂无收藏", state.resumeState.data));
+  qs("#exportAllBtn").addEventListener("click", () => exportJobs(state.jobs, qs("#exportAllBtn"), "暂无岗位", state.resumeState.data, "全部岗位"));
+  qs("#exportFavoritesBtn").addEventListener("click", () => exportJobs(state.jobs.filter((job) => job.starred), qs("#exportFavoritesBtn"), "暂无收藏", state.resumeState.data, "收藏岗位"));
   let clearingJobs = false;
   const clearDialog = qs("#clearConfirmDialog");
   qs("#clearBtn").addEventListener("click", () => {

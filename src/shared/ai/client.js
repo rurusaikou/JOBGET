@@ -10,9 +10,11 @@ import { logApiError, logApiRequest, logApiResponse, logApiTiming } from "./debu
 import { AiApiError, AiNetworkError, AiResponseIncompleteError } from "./errors.js";
 
 export function validateModelSettings(settings) {
-  if (settings.provider === "hosted") { backendUrl("/api/ai"); return; }
+  if (serviceMode(settings) === "hosted") { backendUrl("/api/ai"); return; }
+  if (settings.apiType && settings.apiType !== "responses") throw new Error("自定义服务目前需兼容 Responses API。");
   if (!settings.apiKey || settings.apiKey.trim().length < 12) throw new Error(`请先在服务设置中填写有效的 API Key。`);
   if (!settings.baseUrl || !/^https:\/\//i.test(settings.baseUrl)) throw new Error("请先在服务设置中填写 https:// 开头的 API 地址。");
+  if (/\/chat\/completions\/?$/i.test(settings.baseUrl.trim())) throw new Error("仅支持 Responses API，请填写 API 基础地址或完整的 /responses 地址。");
   if (!settings.model || !settings.model.trim()) throw new Error("请先在服务设置中填写模型名称。");
 }
 
@@ -55,13 +57,17 @@ export async function postResponses({ label, settings, body, errorPrefix }) {
     }
     logApiTiming(label, performance.now() - startedAt);
     logApiError(label, { status: response.status, body: message });
-    if (settings.provider === "hosted") {
+    if (serviceMode(settings) === "hosted") {
       const text = response.status === 429 ? "今日免费额度已用完或请求过于频繁，请稍后再试。" : "RoleMI 服务暂时不可用，请稍后重试。";
       const error = new AiApiError(text, { status: response.status });
       error.hosted = true;
       throw error;
     }
-    throw new AiApiError(message ? `${errorPrefix}：${message.slice(0, 120)}` : `${errorPrefix}：API 调用失败。`, {
+    const compatibilityMessage = request.body.text?.format?.type === "json_schema" &&
+      /json[_ -]?schema|response[_ -]?format|text\.format|structured|strict/i.test(message)
+      ? `${errorPrefix}：该服务不兼容 Responses API 结构化输出（JSON Schema）。`
+      : (message ? `${errorPrefix}：${message.slice(0, 120)}` : `${errorPrefix}：API 调用失败。`);
+    throw new AiApiError(compatibilityMessage, {
       status: response.status,
       details: { body: message.slice(0, 500) }
     });
@@ -74,7 +80,7 @@ export async function postResponses({ label, settings, body, errorPrefix }) {
 }
 
 async function sendRequest(request, settings) {
-  if (settings.provider === "hosted") {
+  if (serviceMode(settings) === "hosted") {
     const { model: _model, ...body } = request.body;
     return fetch(backendUrl("/api/ai"), {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -114,15 +120,23 @@ function handleResponsesPayload(payload, errorPrefix, label) {
 
 export function responsesUrl(baseUrl) {
   const trimmed = baseUrl.trim().replace(/\/+$/, "");
-  const withoutChatSuffix = trimmed.replace(/\/chat\/completions$/i, "");
-  return /\/responses$/i.test(withoutChatSuffix) ? withoutChatSuffix : `${withoutChatSuffix}/responses`;
+  if (/\/chat\/completions$/i.test(trimmed)) {
+    throw new Error("仅支持 Responses API，请填写 API 基础地址或完整的 /responses 地址。");
+  }
+  return /\/responses$/i.test(trimmed) ? trimmed : `${trimmed}/responses`;
 }
 
 function buildResponsesRequest(settings, body) {
   return {
-    url: settings.provider === "hosted" ? backendUrl("/api/ai") : responsesUrl(settings.baseUrl),
+    url: serviceMode(settings) === "hosted" ? backendUrl("/api/ai") : responsesUrl(settings.baseUrl),
     body: normalizeResponsesBody(body)
   };
+}
+
+// 兼容尚未经过 Storage 迁移、仍直接传入 provider: hosted/custom/厂商名 的调用方。
+function serviceMode(settings) {
+  if (settings?.mode === "hosted" || settings?.mode === "custom") return settings.mode;
+  return settings?.provider === "hosted" ? "hosted" : "custom";
 }
 
 function normalizeResponsesBody(body) {

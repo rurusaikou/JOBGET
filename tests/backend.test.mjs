@@ -23,10 +23,11 @@ function mockChrome() {
 }
 test("extension defaults to hosted and honors saved custom settings", async () => {
   installStorage();
-  assert.equal((await getSettings()).provider, "hosted");
+  assert.equal((await getSettings()).mode, "hosted");
   assert.doesNotThrow(() => validateModelSettings(defaultSettings));
-  installStorage({ "rolemi.settings": { provider: "deepseek", model: "old-model", baseUrl: "https://provider.test" } });
-  assert.equal((await getSettings()).provider, "custom");
+  const legacyStorage = installStorage({ "rolemi.settings": { provider: "deepseek", model: "old-model", baseUrl: "https://provider.test" } });
+  assert.deepEqual(await getSettings(), { mode: "custom", provider: "deepseek", apiType: "responses", model: "old-model", baseUrl: "https://provider.test", apiKey: "test-api-key-not-real" });
+  assert.deepEqual(legacyStorage.read("rolemi.settings"), { mode: "custom", provider: "deepseek", apiType: "responses", baseUrl: "https://provider.test", model: "old-model" });
 });
 test("hosted requests use envelope without keys, model or provider URL", async () => {
   mockChrome();
@@ -55,9 +56,11 @@ test("installation generation is serialized across concurrent panel requests", a
 });
 test("offline event queue survives failure and replays the exact receipt", async () => {
   const { data } = mockChrome();
+  data["rolemi.settings"] = { mode: "custom", provider: "", apiType: "responses" };
   const payload = { execution_id: exec, module: "excel_export", event: "success", date: new Date().toISOString().slice(0, 10) };
   await Promise.all([enqueueUsage(payload), enqueueUsage(payload)]);
   assert.equal(data["rolemi.usageQueue"].length, 1);
+  assert.equal(data["rolemi.usageQueue"][0].mode, "custom");
   globalThis.fetch = async () => { throw new Error("offline"); };
   await flushUsage();
   assert.equal(data["rolemi.usageQueue"].length, 1);
@@ -69,6 +72,16 @@ test("offline event queue survives failure and replays the exact receipt", async
   assert.deepEqual(data["rolemi.usageQueue"], []);
   await enqueueUsage({ ...payload, filename: "private.pdf" });
   assert.deepEqual(data["rolemi.usageQueue"], []);
+});
+test("usage execution keeps its initial mode when settings change before settlement", async () => {
+  const { data } = mockChrome();
+  data["rolemi.settings"] = { mode: "custom" };
+  const execution_id = crypto.randomUUID();
+  const base = { execution_id, module: "favorite", date: new Date().toISOString().slice(0, 10) };
+  await enqueueUsage({ ...base, event: "start" });
+  data["rolemi.settings"] = { mode: "hosted" };
+  await enqueueUsage({ ...base, event: "success" });
+  assert.deepEqual(data["rolemi.usageQueue"].map(item => item.mode), ["custom", "custom"]);
 });
 test("module operation settles once; cache counts success; reporting errors don't fail business", async () => {
   const { messages } = mockChrome();
@@ -96,9 +109,9 @@ test("AI compact retry produces two calls but one module use and one terminal ou
 });
 
 test("已保存自定义服务优先且保留会话密钥", async () => {
-  const saved = { provider: "custom", baseUrl: "https://provider.test/v1", model: "saved-model" };
+  const saved = { mode: "custom", provider: "", apiType: "responses", baseUrl: "https://provider.test/v1", model: "saved-model" };
   const storage = installStorage({ "rolemi.settings": saved });
-  assert.equal((await getSettings()).provider, "custom");
+  assert.equal((await getSettings()).mode, "custom");
   assert.deepEqual(storage.read("rolemi.settings"), saved);
   assert.deepEqual(await getSavedSettings(), { ...saved, apiKey: "test-api-key-not-real" });
 });

@@ -1,8 +1,7 @@
 /**
- * 服务商预设表：提供托管与自定义连接的默认值，供配置兼容及请求适配使用。
+ * 实际模型供应商预设表；托管/自定义属于 mode，不在此表表达。
  */
 export const apiProviderPresets = {
-  hosted: { baseUrl: "", model: "" },
   openai: {
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4.1-mini"
@@ -10,9 +9,5 @@ export const apiProviderPresets = {
   deepseek: {
     baseUrl: "https://api.deepseek.com",
     model: "deepseek-v4-flash"
-  },
-  custom: {
-    baseUrl: "https://api.your-provider.com/v1",
-    model: "your-model"
   }
 };
